@@ -150,10 +150,10 @@
       </div>
       <div class="card">
         <div class="stage-label">Загрузить работу</div>
-        <label class="file-btn" id="btn-before">📷 Фото «До» (контур)</label>
-        <input type="file" id="photo-before" accept="image/*">
-        <label class="file-btn" id="btn-after">🎨 Фото «После» (раскраска)</label>
-        <input type="file" id="photo-after" accept="image/*">
+       <button class="file-btn" id="btn-before" type="button">📷 Фото «До» (контур)</button>
+<input type="file" id="photo-before" accept="image/*" style="display:none">
+<button class="file-btn" id="btn-after" type="button">🎨 Фото «После» (раскраска)</button>
+<input type="file" id="photo-after" accept="image/*" style="display:none">
         <button class="btn" id="submit-btn" disabled>Отправить на проверку</button>
         <div class="status" id="status"></div>
       </div>
@@ -460,7 +460,15 @@
       if (data.error) { alert(data.error); return; }
       loadAdmin('pending');
     };
-
+// Клик по кнопке — открываем выбор файла
+document.getElementById('btn-before').addEventListener('click', function(e) {
+  e.preventDefault();
+  document.getElementById('photo-before').click();
+});
+document.getElementById('btn-after').addEventListener('click', function(e) {
+  e.preventDefault();
+  document.getElementById('photo-after').click();
+});
     init();
   </script>
 </body>
