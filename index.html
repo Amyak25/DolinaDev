@@ -20,6 +20,7 @@
     .stage-img { width: 100%; height: 180px; background: #ECF0F1; border-radius: 14px; margin-top: 14px; object-fit: cover; }
     .btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #3498DB, #2980B9); color: white; border: none; border-radius: 14px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 12px rgba(52,152,219,0.35); }
     .btn:disabled { opacity: 0.5; }
+    .btn-green { background: linear-gradient(135deg, #27AE60, #229954); box-shadow: 0 4px 12px rgba(39,174,96,0.35); }
     .file-btn { display: block; width: 100%; padding: 14px; background: #ECF0F1; border: 2px dashed #BDC3C7; border-radius: 12px; text-align: center; font-size: 13px; color: #7F8C8D; cursor: pointer; margin-top: 8px; }
     .file-btn.has-file { background: #D5F4E6; border-color: #27AE60; color: #27AE60; font-weight: 600; }
     input[type="file"] { display: none; }
@@ -56,6 +57,9 @@
     .action-btn { padding: 10px 16px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 16px; color: white; }
     .action-btn.approve { background: #27AE60; }
     .action-btn.reject { background: #E74C3C; }
+    .premium-badge { display: inline-block; padding: 4px 10px; background: linear-gradient(135deg, #F39C12, #E67E22); color: white; border-radius: 8px; font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+    .completed-badge { margin-top: 12px; padding: 10px; background: #D5F4E6; color: #27AE60; border-radius: 10px; text-align: center; font-weight: 700; }
+    .locked-msg { padding: 20px; text-align: center; color: #7F8C8D; font-size: 14px; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -88,6 +92,11 @@
       <div class="shop-grid" id="shop-grid">Загрузка...</div>
     </div>
 
+    <div class="page" id="page-premium">
+      <div class="section-title">⭐ Премиум-задания</div>
+      <div id="premium-content">Загрузка...</div>
+    </div>
+
     <div class="page" id="page-players">
       <div class="section-title">👥 Игроки</div>
       <div id="players-list">Загрузка...</div>
@@ -106,6 +115,7 @@
   <div class="nav">
     <div class="nav-item active" data-page="city"><div class="icon">🏠</div><div>Город</div></div>
     <div class="nav-item" data-page="shop"><div class="icon">🛒</div><div>Магазин</div></div>
+    <div class="nav-item" data-page="premium" id="nav-premium" style="display:none"><div class="icon">⭐</div><div>Премиум</div></div>
     <div class="nav-item" data-page="players"><div class="icon">👥</div><div>Игроки</div></div>
     <div class="nav-item" data-page="admin" id="nav-admin" style="display:none"><div class="icon">⚙️</div><div>Админ</div></div>
   </div>
@@ -124,6 +134,7 @@
     let currentProgress = null;
     let fileBefore = null;
     let fileAfter = null;
+    let premiumUploadTaskId = null;
 
     document.querySelectorAll('.nav-item').forEach(function(item) {
       item.addEventListener('click', function() {
@@ -135,6 +146,7 @@
         if (page === 'shop') loadShop();
         if (page === 'players') loadPlayers();
         if (page === 'admin') loadAdmin('pending');
+        if (page === 'premium') loadPremium();
       });
     });
 
@@ -167,6 +179,11 @@
         document.getElementById('nav-admin').style.display = 'flex';
       }
       await loadProgress();
+
+      // Показываем вкладку Премиум, если открыт
+      if (currentProgress && currentProgress.progress && currentProgress.progress.premium_unlocked) {
+        document.getElementById('nav-premium').style.display = 'flex';
+      }
     }
 
     async function loadProgress() {
@@ -194,6 +211,11 @@
         document.getElementById('stage-desc').textContent = 'Тебе открыты премиум-задания.';
       }
       document.getElementById('balance').textContent = '💰 ' + result.user.balance;
+
+      // Обновляем видимость вкладки Премиум
+      if (result.progress && result.progress.premium_unlocked) {
+        document.getElementById('nav-premium').style.display = 'flex';
+      }
     }
 
     document.getElementById('btn-before').addEventListener('click', function(e) {
@@ -302,6 +324,141 @@
       await loadShop();
     };
 
+    // === ПРЕМИУМ ===
+    async function loadPremium() {
+      const content = document.getElementById('premium-content');
+      content.innerHTML = 'Загрузка...';
+
+      const result = await api('get-premium', {
+        body: JSON.stringify({ telegram_id: currentUser.telegram_id })
+      });
+
+      if (result.error) {
+        content.innerHTML = '<div class="card">Ошибка: ' + result.error + '</div>';
+        return;
+      }
+
+      if (!result.unlocked) {
+        content.innerHTML = '<div class="card locked-msg">🔒 Премиум-задания откроются после прохождения всех 15 этапов.</div>';
+        return;
+      }
+
+      const completed = result.completed || [];
+      let html = '';
+
+      result.tasks.forEach(function(task) {
+        const isDone = completed.indexOf(task.id) !== -1;
+        html += '<div class="card">';
+        html += '<div class="premium-badge">⭐ Премиум-' + task.order_num + '</div>';
+        html += '<div class="stage-title">' + task.name + '</div>';
+        html += '<div class="stage-desc">' + task.description + '</div>';
+
+        if (isDone) {
+          html += '<div class="completed-badge">✅ Выполнено</div>';
+        } else {
+          html += '<button type="button" class="btn btn-green" onclick="openPremiumUpload(' + task.id + ')">📤 Загрузить работу</button>';
+        }
+        html += '</div>';
+      });
+
+      content.innerHTML = html;
+
+      // Скрытый блок загрузки для премиума
+      if (!document.getElementById('premium-upload-block')) {
+        const block = document.createElement('div');
+        block.id = 'premium-upload-block';
+        block.style.display = 'none';
+        block.innerHTML =
+          '<div class="card" style="position:fixed; bottom:90px; left:16px; right:16px; z-index:200; box-shadow: 0 8px 30px rgba(0,0,0,0.2);">' +
+            '<div style="font-weight:800; margin-bottom:10px;">Загрузить работу</div>' +
+            '<button type="button" class="file-btn" id="p-btn-before">📷 Фото «До» (контур)</button>' +
+            '<input type="file" id="p-photo-before" accept="image/*" style="display:none">' +
+            '<button type="button" class="file-btn" id="p-btn-after">🎨 Фото «После» (раскраска)</button>' +
+            '<input type="file" id="p-photo-after" accept="image/*" style="display:none">' +
+            '<button type="button" class="btn btn-green" id="p-submit-btn" disabled>Отправить</button>' +
+            '<button type="button" class="btn" style="background:#BDC3C7; box-shadow:none;" id="p-cancel-btn">Отмена</button>' +
+            '<div class="status" id="p-status"></div>' +
+          '</div>';
+        document.body.appendChild(block);
+
+        document.getElementById('p-btn-before').addEventListener('click', function() {
+          document.getElementById('p-photo-before').click();
+        });
+        document.getElementById('p-btn-after').addEventListener('click', function() {
+          document.getElementById('p-photo-after').click();
+        });
+        document.getElementById('p-cancel-btn').addEventListener('click', function() {
+          document.getElementById('premium-upload-block').style.display = 'none';
+          premiumUploadTaskId = null;
+        });
+
+        let pFileBefore = null;
+        let pFileAfter = null;
+
+        document.getElementById('p-photo-before').addEventListener('change', function(e) {
+          pFileBefore = e.target.files[0];
+          const btn = document.getElementById('p-btn-before');
+          btn.textContent = '✅ ' + pFileBefore.name.slice(0, 30);
+          btn.classList.add('has-file');
+          checkPremiumReady(pFileBefore, pFileAfter);
+        });
+        document.getElementById('p-photo-after').addEventListener('change', function(e) {
+          pFileAfter = e.target.files[0];
+          const btn = document.getElementById('p-btn-after');
+          btn.textContent = '✅ ' + pFileAfter.name.slice(0, 30);
+          btn.classList.add('has-file');
+          checkPremiumReady(pFileBefore, pFileAfter);
+        });
+        function checkPremiumReady(a, b) {
+          document.getElementById('p-submit-btn').disabled = !(a && b);
+        }
+
+        document.getElementById('p-submit-btn').addEventListener('click', async function() {
+          const status = document.getElementById('p-status');
+          const btn = document.getElementById('p-submit-btn');
+          if (!pFileBefore || !pFileAfter || !premiumUploadTaskId) return;
+          btn.disabled = true;
+          status.className = 'status loading';
+          status.textContent = '⏳ Загружаем фото...';
+          try {
+            const urlBefore = await uploadPhoto(pFileBefore, 'premium-before');
+            const urlAfter = await uploadPhoto(pFileAfter, 'premium-after');
+            status.textContent = '⏳ Отправляем на проверку...';
+            const result = await api('upload-submission', {
+              body: JSON.stringify({
+                telegram_id: currentUser.telegram_id,
+                premium_task_id: premiumUploadTaskId,
+                photo_before_url: urlBefore,
+                photo_after_url: urlAfter
+              })
+            });
+            if (result.error) throw new Error(result.error);
+            status.className = 'status success';
+            status.textContent = '✅ Работа отправлена!';
+            pFileBefore = null; pFileAfter = null;
+            document.getElementById('p-btn-before').textContent = '📷 Фото «До» (контур)';
+            document.getElementById('p-btn-before').classList.remove('has-file');
+            document.getElementById('p-btn-after').textContent = '🎨 Фото «После» (раскраска)';
+            document.getElementById('p-btn-after').classList.remove('has-file');
+            document.getElementById('p-submit-btn').disabled = true;
+            setTimeout(function() {
+              document.getElementById('premium-upload-block').style.display = 'none';
+            }, 1500);
+          } catch (err) {
+            status.className = 'status error';
+            status.textContent = '❌ ' + err.message;
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      }
+    }
+
+    window.openPremiumUpload = function(taskId) {
+      premiumUploadTaskId = taskId;
+      document.getElementById('premium-upload-block').style.display = 'block';
+    };
+
     async function loadPlayers() {
       const list = document.getElementById('players-list');
       const result = await apiGet('get-players');
@@ -352,8 +509,9 @@
       let html = '';
       data.submissions.forEach(function(s) {
         const nick = s.nickname ? s.nickname : ('Игрок #' + s.user_id);
+        const type = s.premium_task_id ? 'Премиум-' + s.premium_task_id : 'Этап ' + (s.stage_id || '?');
         html += '<div class="sub-card">';
-        html += '<div><b>' + nick + '</b> • Этап ' + (s.stage_id || 'премиум') + '</div>';
+        html += '<div><b>' + nick + '</b> • ' + type + '</div>';
         html += '<div class="sub-photos">';
         html += '<img src="' + s.photo_before_url + '" alt="до">';
         html += '<img src="' + s.photo_after_url + '" alt="после">';
