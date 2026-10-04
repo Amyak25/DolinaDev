@@ -8,7 +8,7 @@ module.exports = async (req, res) => {
   try {
     const { telegram_id, stage_id, premium_task_id, photo_before_url, photo_after_url } = req.body;
 
-    if (!telegram_id  !photo_before_url  !photo_after_url) {
+    if (!telegram_id || !photo_before_url || !photo_after_url) {
       return res.status(400).json({ error: 'Не хватает данных' });
     }
     if (!stage_id && !premium_task_id) {
