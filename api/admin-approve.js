@@ -72,21 +72,23 @@ module.exports = async (req, res) => {
 
     // Если это этап — двигаем прогресс
     if (stageId) {
-      const stage = await sql`
-        SELECT order_num FROM stages WHERE id = ${stageId}
-      `;
-      if (stage.length > 0) {
-        const orderNum = Number(stage[0].order_num);
-        const nextStage = orderNum + 1;
+  const stage = await sql`
+    SELECT order_num FROM stages WHERE id = ${stageId}
+  `;
+  if (stage.length > 0) {
+    const orderNum = Number(stage[0].order_num);
+    const nextStage = orderNum + 1;
 
-        await sql`
-          UPDATE user_progress
-          SET current_stage = GREATEST(current_stage, ${nextStage}),
-              premium_unlocked = CASE WHEN ${nextStage} > 15 THEN true ELSE premium_unlocked END
-          WHERE user_id = ${userId}
-        `;
-      }
-    }
+    // Создаём запись, если её нет, и обновляем прогресс
+    await sql`
+      INSERT INTO user_progress (user_id, current_stage, premium_unlocked, completed_premium)
+      VALUES (${userId}, ${nextStage}, false, '{}')
+      ON CONFLICT (user_id) DO UPDATE
+      SET current_stage = GREATEST(user_progress.current_stage, ${nextStage}),
+          premium_unlocked = CASE WHEN ${nextStage} > 15 THEN true ELSE user_progress.premium_unlocked END
+    `;
+  }
+}
 
     // Если это премиум-задание — добавляем в completed_premium
     if (premiumId) {
