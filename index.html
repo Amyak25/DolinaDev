@@ -262,7 +262,7 @@
       const stage = result.stage;
       if (stage) {
         document.getElementById('stage-label').textContent = Этап ${stage.order_num} из 15;
-        document.getElementById('stage-title').textContent = stage.name;
+        document.getElementById('stage-label').textContent = Этап ${stage.order_num} из 15;
         document.getElementById('stage-desc').textContent = stage.description;
         if (stage.building_image_url) {
           const img = document.getElementById('stage-img');
