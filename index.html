@@ -313,7 +313,7 @@
         const result = await api('upload-submission', {
           body: JSON.stringify({
             telegram_id: currentUser.telegram_id,
-            stage_id: stage ? stage.order_num : null,
+            stage_id: stage ? stage.id : null,
             photo_before_url: urlBefore,
             photo_after_url: urlAfter
           })
