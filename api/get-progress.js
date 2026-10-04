@@ -27,10 +27,10 @@ module.exports = async (req, res) => {
     `;
 
     const stage = await sql`
-      SELECT order_num, name, description, building_image_url
-      FROM stages
-      WHERE order_num = ${progress[0]?.current_stage || 1}
-    `;
+  SELECT id, order_num, name, description, building_image_url
+  FROM stages
+  WHERE order_num = ${progress[0]?.current_stage || 1}
+`;
 
     const purchases = await sql`
       SELECT s.id, s.name, s.price
