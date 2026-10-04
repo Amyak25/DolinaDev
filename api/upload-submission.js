@@ -19,7 +19,7 @@ module.exports = async (req, res) => {
 
     const result = await sql`
       INSERT INTO submissions (user_id, stage_id, premium_task_id, photo_before_url, photo_after_url, status)
-      VALUES (${telegram_id}, ${stage_id  null}, ${premium_task_id  null}, ${photo_before_url}, ${photo_after_url}, 'pending')
+     VALUES (${Number(telegram_id)}, ${stage_id ? Number(stage_id) : null}, ${premium_task_id ? Number(premium_task_id) : null}, ${photo_before_url}, ${photo_after_url}, 'pending')
       RETURNING id
     `;
 
