@@ -426,8 +426,8 @@
           html += '<div class="sub-actions">';
           html += '<input type="number" id="reward-' + s.
             id + '" placeholder="Монет" min="0">';
-          html += '<button class="approve" onclick="approveSub(' + s.id + ')">✅</button>';
-          html += '<button class="reject" onclick="rejectSub(' + s.id + ')">❌</button>';
+          html += '<button type="button" class="approve" onclick="approveSub(' + s.id + ')">✅</button>';
+html += '<button type="button" class="reject" onclick="rejectSub(' + s.id + ')">❌</button>';
           html += '</div>';
         } else {
           html += '<div>Статус: ' + s.status + ' • Награда: ' + s.reward + '</div>';
