@@ -185,14 +185,9 @@
     <div class="nav-item" data-page="players"><div class="icon">👥</div><div>Игроки</div></div>
     <div class="nav-item" data-page="admin" id="nav-admin" style="display:none"><div class="icon">⚙️</div><div>Админ</div></div>
   </div>
-
   <script>
-    // ============================================
-    // const SUPABASE_KEY = 'sb_publishable_F9CEHRMsxKkTK1_Sfr9rQQ_9ZKXIHNH';
-    // ============================================
     const SUPABASE_URL = 'https://fmvodfnonmdjzfjkagvo.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_F9CEHRMsxKkTK1_Sfr9rQQ_9ZKXIHNH';
-    // ============================================
 
     const tg = window.Telegram.WebApp;
     tg.ready();
@@ -205,11 +200,11 @@
     let fileBefore = null;
     let fileAfter = null;
 
-    document.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(function(item) {
+      item.addEventListener('click', function() {
         const page = item.dataset.page;
-        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(function(i) { i.classList.remove('active'); });
+        document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
         item.classList.add('active');
         document.getElementById('page-' + page).classList.add('active');
         if (page === 'shop') loadShop();
@@ -218,12 +213,12 @@
       });
     });
 
-    async function api(path, options = {}) {
-      const res = await fetch('/api/' + path, {
+    async function api(path, options) {
+      options = options || {};
+      const res = await fetch('/api/' + path, Object.assign({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        ...options
-      });
+        headers: { 'Content-Type': 'application/json' }
+      }, options));
       return res.json();
     }
     async function apiGet(path) {
@@ -232,7 +227,7 @@
     }
 
     async function init() {
-      const user = tg.initDataUnsafe?.user;
+      const user = tg.initDataUnsafe && tg.initDataUnsafe.user;
       if (!user) {
         document.getElementById('nickname').textContent = 'Открой через Telegram';
         return;
@@ -261,8 +256,8 @@
       currentProgress = result;
       const stage = result.stage;
       if (stage) {
-        document.getElementById('stage-label').textContent = Этап ${stage.order_num} из 15;
-        document.getElementById('stage-label').textContent = Этап ${stage.order_num} из 15;
+        document.getElementById('stage-label').textContent = 'Этап ' + stage.order_num + ' из 15';
+        document.getElementById('stage-title').textContent = stage.name;
         document.getElementById('stage-desc').textContent = stage.description;
         if (stage.building_image_url) {
           const img = document.getElementById('stage-img');
@@ -276,14 +271,14 @@
       document.getElementById('balance').textContent = '💰 ' + result.user.balance;
     }
 
-    document.getElementById('photo-before').addEventListener('change', e => {
+    document.getElementById('photo-before').addEventListener('change', function(e) {
       fileBefore = e.target.files[0];
       const btn = document.getElementById('btn-before');
       btn.textContent = '✅ ' + fileBefore.name.slice(0, 30);
       btn.classList.add('has-file');
       checkReady();
     });
-    document.getElementById('photo-after').addEventListener('change', e => {
+    document.getElementById('photo-after').addEventListener('change', function(e) {
       fileAfter = e.target.files[0];
       const btn = document.getElementById('btn-after');
       btn.textContent = '✅ ' + fileAfter.name.slice(0, 30);
@@ -295,16 +290,15 @@
     }
 
     async function uploadPhoto(file, prefix) {
-      const ext = file.name.
-        split('.').pop();
-      const fileName = ${currentUser.telegram_id}/${prefix}-${Date.now()}.${ext};
-      const { error } = await sb.storage.from('photos').upload(fileName, file, { upsert: false });
-      if (error) throw error;
-      const { data: urlData } = sb.storage.from('photos').getPublicUrl(fileName);
-      return urlData.publicUrl;
+      const ext = file.name.split('.').pop();
+      const fileName = currentUser.telegram_id + '/' + prefix + '-' + Date.now() + '.' + ext;
+      const result = await sb.storage.from('photos').upload(fileName, file, { upsert: false });
+      if (result.error) throw result.error;
+      const urlData = sb.storage.from('photos').getPublicUrl(fileName);
+      return urlData.data.publicUrl;
     }
 
-    document.getElementById('submit-btn').addEventListener('click', async () => {
+    document.getElementById('submit-btn').addEventListener('click', async function() {
       const status = document.getElementById('status');
       const btn = document.getElementById('submit-btn');
       if (!fileBefore || !fileAfter) return;
@@ -339,7 +333,6 @@
         btn.disabled = false;
       }
     });
-
     async function loadShop() {
       const grid = document.getElementById('shop-grid');
       const result = await apiGet('get-shop');
@@ -347,21 +340,20 @@
         grid.innerHTML = '<div class="card">Ошибка загрузки магазина</div>';
         return;
       }
-      const owned = (currentProgress?.purchases || []).map(p => p.id);
-      grid.innerHTML = result.items.map(item => {
-        const isOwned = owned.includes(item.id);
+      const purchases = (currentProgress && currentProgress.purchases) ? currentProgress.purchases : [];
+      const owned = purchases.map(function(p) { return p.id; });
+      let html = '';
+      result.items.forEach(function(item) {
+        const isOwned = owned.indexOf(item.id) !== -1;
         const canBuy = currentUser.balance >= item.price && !isOwned;
-        return `
-          <div class="shop-card">
-            <div class="shop-name">${item.name}</div>
-            <div class="shop-price">💰 ${item.price}</div>
-            <button class="shop-buy ${isOwned ? 'owned' : ''}"
-                    ${(!canBuy) ? 'disabled' : ''}
-                    onclick="buyItem(${item.id})">
-              ${isOwned ? '✅ Куплено' : 'Купить'}
-            </button>
-          </div>`;
-      }).join('');
+        html += '<div class="shop-card">';
+        html += '<div class="shop-name">' + item.name + '</div>';
+        html += '<div class="shop-price">💰 ' + item.price + '</div>';
+        html += '<button class="shop-buy ' + (isOwned ? 'owned' : '') + '" ' + (canBuy ? '' : 'disabled') + ' onclick="buyItem(' + item.id + ')">';
+        html += isOwned ? '✅ Куплено' : 'Купить';
+        html += '</button></div>';
+      });
+      grid.innerHTML = html;
     }
 
     window.buyItem = async function(id) {
@@ -382,57 +374,67 @@
         list.innerHTML = '<div class="card">Пока нет других игроков</div>';
         return;
       }
-      list.innerHTML = result.players.map(p => `
-        <div class="player-row" onclick="showPlayer(${p.telegram_id})">
-          <div>
-            <div class="nick">${p.nickname}</div>
-            <div class="lvl">Этап ${p.current_stage}</div>
-          </div>
-          <div class="bal">💰 ${p.balance}</div>
-        </div>
-      `).join('');
+      let html = '';
+      result.players.forEach(function(p) {
+        html += '<div class="player-row" onclick="showPlayer(' + p.telegram_id + ')">';
+        html += '<div><div class="nick">' + p.nickname + '</div>';
+        html += '<div class="lvl">Этап ' + p.current_stage + '</div></div>';
+        html += '<div class="bal">💰 ' + p.balance + '</div>';
+        html += '</div>';
+      });
+      list.innerHTML = html;
     }
 
     window.showPlayer = async function(id) {
       const result = await apiGet('get-player?telegram_id=' + id);
       if (result.error) { alert(result.error); return; }
       const u = result.user;
-      const purchases = result.purchases.map(p => p.name).join(', ') || 'Нет';
-      alert(`👤 ${u.nickname}\nЭтап: ${u.current_stage}\nБаланс: ${u.balance}\nУлучшения: ${purchases}`);
+      let purchases = 'Нет';
+      if (result.purchases && result.purchases.length > 0) {
+        purchases = result.purchases.map(function(p) { return p.name; }).join(', ');
+      }
+      alert('👤 ' + u.nickname + '\nЭтап: ' + u.current_stage + '\nБаланс: ' + u.balance + '\nУлучшения: ' + purchases);
     };
 
-    document.querySelectorAll('.admin-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.admin-tab').forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
         tab.classList.add('active');
         loadAdmin(tab.dataset.tab);
       });
     });
 
-    async function loadAdmin(tab = 'pending') {
+    async function loadAdmin(tab) {
+      tab = tab || 'pending';
       const content = document.getElementById('admin-content');
       content.innerHTML = 'Загрузка...';
-      const res = await fetch(`/api/admin-submissions?status=${tab}`);
+      const res = await fetch('/api/admin-submissions?status=' + tab);
       const data = await res.json();
       if (!data.submissions || data.submissions.length === 0) {
         content.innerHTML = '<div class="card">Пусто</div>';
         return;
       }
-      content.innerHTML = data.submissions.map(s => `
-        <div class="sub-card">
-          <div><b>Игрок #${s.user_id}</b> • Этап ${s.stage_id || 'премиум'}</div>
-          <div class="sub-photos">
-            <img src="${s.photo_before_url}" alt="до">
-            <img src="${s.photo_after_url}" alt="после">
-          </div>
-          ${s.status === 'pending' ? `
-            <div class="sub-actions">
-              <input type="number" id="reward-${s.id}" placeholder="Монет" min="0">
-              <button class="approve" onclick="approveSub(${s.id})">✅</button>
-              <button class="reject" onclick="rejectSub(${s.id})">❌</button>
-            </div>` : `<div>Статус: ${s.status} • Награда: ${s.reward}</div>`}
-        </div>
-      `).join('');
+      let html = '';
+      data.submissions.forEach(function(s) {
+        html += '<div class="sub-card">';
+        html += '<div><b>Игрок #' + s.user_id + '</b> • Этап ' + (s.stage_id || 'премиум') + '</div>';
+        html += '<div class="sub-photos">';
+        html += '<img src="' + s.photo_before_url + '" alt="до">';
+        html += '<img src="' + s.photo_after_url + '" alt="после">';
+        html += '</div>';
+        if (s.status === 'pending') {
+          html += '<div class="sub-actions">';
+          html += '<input type="number" id="reward-' + s.
+            id + '" placeholder="Монет" min="0">';
+          html += '<button class="approve" onclick="approveSub(' + s.id + ')">✅</button>';
+          html += '<button class="reject" onclick="rejectSub(' + s.id + ')">❌</button>';
+          html += '</div>';
+        } else {
+          html += '<div>Статус: ' + s.status + ' • Награда: ' + s.reward + '</div>';
+        }
+        html += '</div>';
+      });
+      content.innerHTML = html;
     }
 
     window.approveSub = async function(id) {
@@ -441,7 +443,7 @@
       const res = await fetch('/api/admin-approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ submission_id: id, reward, admin_id: currentUser.telegram_id })
+        body: JSON.stringify({ submission_id: id, reward: reward, admin_id: currentUser.telegram_id })
       });
       const data = await res.json();
       if (data.error) { alert(data.error); return; }
