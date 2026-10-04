@@ -426,8 +426,8 @@
           html += '<div class="sub-actions">';
           html += '<input type="number" id="reward-' + s.
             id + '" placeholder="Монет" min="0">';
-          html += '<button type="button" class="approve" onclick="approveSub(' + s.id + ')">✅</button>';
-html += '<button type="button" class="reject" onclick="rejectSub(' + s.id + ')">❌</button>';
+          html += '<button type="button" class="approve" data-action="approve" data-id="' + s.id + '">✅</button>';
+html += '<button type="button" class="reject" data-action="reject" data-id="' + s.id + '">❌</button>';
           html += '</div>';
         } else {
           html += '<div>Статус: ' + s.status + ' • Награда: ' + s.reward + '</div>';
@@ -435,8 +435,17 @@ html += '<button type="button" class="reject" onclick="rejectSub(' + s.id + ')">
         html += '</div>';
       });
       content.innerHTML = html;
-    }
 
+// Навешиваем обработчики на кнопки approve/reject
+document.querySelectorAll('#admin-content button[data-action]').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    const action = btn.dataset.action;
+    const id = parseInt(btn.dataset.id);
+    if (action === 'approve') window.approveSub(id);
+    if (action === 'reject') window.rejectSub(id);
+  });
+});
+}
     window.approveSub = async function(id) {
       const reward = parseInt(document.getElementById('reward-' + id).value);
       if (isNaN(reward)) { alert('Введи число монет'); return; }
