@@ -1,0 +1,53 @@
+const { neon } = require('@neondatabase/serverless');
+
+module.exports = async (req, res) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const { telegram_id } = req.body;
+    if (!telegram_id) {
+      return res.status(400).json({ error: 'telegram_id обязателен' });
+    }
+
+    const sql = neon(process.env.DATABASE_URL);
+
+    const user = await sql`
+      SELECT telegram_id, nickname, balance, role
+      FROM users WHERE telegram_id = ${telegram_id}
+    `;
+    if (user.length === 0) {
+      return res.status(404).json({ error: 'Игрок не найден' });
+    }
+
+    const progress = await sql`
+      SELECT current_stage, premium_unlocked, completed_premium
+      FROM user_progress WHERE user_id = ${telegram_id}
+    `;
+
+    const stage = await sql`
+      SELECT order_num, name, description, building_image_url
+      FROM stages
+      WHERE order_num = ${progress[0]?.current_stage || 1}
+    `;
+
+    const purchases = await sql`
+      SELECT s.id, s.name, s.price
+      FROM user_purchases up
+      JOIN shop_items s ON s.id = up.shop_item_id
+      WHERE up.user_id = ${telegram_id}
+      ORDER BY up.purchased_at DESC
+    `;
+
+    return res.status(200).json({
+      user: user[0],
+      progress: progress[0] || { current_stage: 1, premium_unlocked: false, completed_premium: [] },
+      stage: stage[0] || null,
+      purchases
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: err.message });
+  }
+};
