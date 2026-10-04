@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Долина</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(180deg, #E8F4F8 0%, #F5FAFC 100%);
+      min-height: 100vh; color: #2C3E50; padding-bottom: 80px;
+    }
+    .container { padding: 16px; }
+    .top-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 16px; background: white; border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06); margin-bottom: 16px;
+    }
+    .top-bar .name { font-size: 15px; font-weight: 600; }
+    .top-bar .balance { font-size: 18px; font-weight: 800; color: #F39C12; }
+    .card {
+      background: white; border-radius: 20px; padding: 20px;
+      margin-bottom: 14px; box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+    }
+    .stage-label {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+      color: #3498DB; font-weight: 700; margin-bottom: 6px;
+    }
+    .stage-title { font-size: 22px; font-weight: 800; margin-bottom: 10px; }
+    .stage-desc {
+      font-size: 14px; line-height: 1.5; color: #34495E;
+      padding: 12px; background: #F8F9FA; border-radius: 12px;
+      border-left: 4px solid #3498DB;
+    }
+    .stage-img {
+      width: 100%; height: 180px; background: #ECF0F1;
+      border-radius: 14px; margin-top: 14px; object-fit: cover;
+    }
+    .btn {
+      width: 100%; padding: 15px;
+      background: linear-gradient(135deg, #3498DB, #2980B9);
+      color: white; border: none; border-radius: 14px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      margin-top: 10px; box-shadow: 0 4px 12px rgba(52,152,219,0.35);
+    }
+    .btn:disabled { opacity: 0.5; }
+    .file-btn {
+      display: block; width: 100%; padding: 14px;
+      background: #ECF0F1; border: 2px dashed #BDC3C7;
+      border-radius: 12px; text-align: center;
+      font-size: 13px; color: #7F8C8D; cursor: pointer; margin-top: 8px;
+    }
+    .file-btn.has-file {
+      background: #D5F4E6; border-color: #27AE60;
+      color: #27AE60; font-weight: 600;
+    }
+    input[type="file"] { display: none; }
+    .nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: white; border-top: 1px solid #E8EBED;
+      display: flex; justify-content: space-around;
+      padding: 8px 0; z-index: 100;
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+    }
+    .nav-item {
+      flex: 1; text-align: center; padding: 8px 4px;
+      font-size: 11px; color: #95A5A6; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+    }
+    .nav-item.active { color: #3498DB; font-weight: 700; }
+    .nav-item .icon { font-size: 20px; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .shop-card {
+      background: white; border-radius: 14px; padding: 12px;
+      text-align: center; box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+    }
+    .shop-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .shop-price { font-size: 12px; color: #F39C12; font-weight: 700; margin-bottom: 8px; }
+    .shop-buy {
+      width: 100%; padding: 8px; font-size: 12px;
+      background: #3498DB; color: white; border: none;
+      border-radius: 8px; cursor: pointer; font-weight: 600;
+    }
+    .shop-buy:disabled { background: #BDC3C7; }
+    .shop-buy.owned { background: #27AE60; }
+    .player-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px; background: white; border-radius: 12px;
+      margin-bottom: 8px; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .player-row .nick { font-weight: 700; font-size: 14px; }
+    .player-row .lvl { font-size: 12px; color: #7F8C8D; }
+    .player-row .bal { font-weight: 700; color: #F39C12; font-size: 13px; }
+    .status {
+      text-align: center; padding: 10px; border-radius: 10px;
+      font-size: 13px; margin-top: 10px; display: none;
+    }
+    .status.success { background: #D5F4E6; color: #27AE60; display: block; }
+    .status.error { background: #FADBD8; color: #E74C3C; display: block; }
+    .status.loading { background: #FEF9E7; color: #F39C12; display: block; }
+    .section-title { font-size: 17px; font-weight: 800; margin: 16px 4px 10px; }
+    .admin-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .admin-tab {
+      flex: 1; padding: 10px; background: #ECF0F1;
+      border-radius: 10px; text-align: center;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .admin-tab.active { background: #3498DB; color: white; }
+    .sub-card {
+      background: white; border-radius: 14px; padding: 14px;
+      margin-bottom: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+    }
+    .sub-photos { display: flex; gap: 8px; margin: 10px 0; }
+    .sub-photos img {
+      flex: 1; height: 120px; object-fit: cover;
+      border-radius: 10px; background: #ECF0F1;
+    }
+    .sub-actions { display: flex; gap: 8px; margin-top: 8px; }
+    .sub-actions input {
+      flex: 1; padding: 10px; border: 2px solid #ECF0F1;
+      border-radius: 10px; font-size: 14px; outline: none;
+    }
+    .sub-actions button {
+      padding: 10px 16px; border: none; border-radius: 10px;
+      font-weight: 700; cursor: pointer; font-size: 13px;
+    }
+    .approve { background: #27AE60; color: white; }
+    .reject { background: #E74C3C; color: white; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <div class="name" id="nickname">Загрузка...</div>
+      <div class="balance" id="balance">💰 0</div>
+    </div>
+
+    <div class="page active" id="page-city">
+      <div class="card">
+        <div class="stage-label" id="stage-label">Этап 1 из 15</div>
+        <div class="stage-title" id="stage-title">Загрузка...</div>
+        <div class="stage-desc" id="stage-desc">Подождите...</div>
+        <img class="stage-img" id="stage-img" src="" alt="" style="display:none">
+      </div>
+      <div class="card">
+        <div class="stage-label">Загрузить работу</div>
+        <label class="file-btn" id="btn-before">📷 Фото «До» (контур)</label>
+        <input type="file" id="photo-before" accept="image/*">
+        <label class="file-btn" id="btn-after">🎨 Фото «После» (раскраска)</label>
+        <input type="file" id="photo-after" accept="image/*">
+        <button class="btn" id="submit-btn" disabled>Отправить на проверку</button>
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+
+    <div class="page" id="page-shop">
+      <div class="section-title">🛒 Магазин улучшений</div>
+      <div class="shop-grid" id="shop-grid">Загрузка...</div>
+    </div>
+
+    <div class="page" id="page-players">
+      <div class="section-title">👥 Игроки</div>
+      <div id="players-list">Загрузка...</div>
+    </div>
+
+    <div class="page" id="page-admin">
+      <div class="section-title">⚙️ Админ-панель</div>
+      <div class="admin-tabs">
+        <div class="admin-tab active" data-tab="pending">Очередь</div>
+        <div class="admin-tab" data-tab="history">История</div>
+      </div>
+      <div id="admin-content">Загрузка...</div>
+    </div>
+  </div>
+
+  <div class="nav">
+    <div class="nav-item active" data-page="city"><div class="icon">🏠</div><div>Город</div></div>
+    <div class="nav-item" data-page="shop"><div class="icon">🛒</div><div>Магазин</div></div>
+    <div class="nav-item" data-page="players"><div class="icon">👥</div><div>Игроки</div></div>
+    <div class="nav-item" data-page="admin" id="nav-admin" style="display:none"><div class="icon">⚙️</div><div>Админ</div></div>
+  </div>
+
+  <script>
+    // ============================================
+    // const SUPABASE_KEY = 'sb_publishable_F9CEHRMsxKkTK1_Sfr9rQQ_9ZKXIHNH';
+    // ============================================
+    const SUPABASE_URL = 'https://fmvodfnonmdjzfjkagvo.supabase.co';
+    const SUPABASE_KEY = 'ВСТАВЬ_СЮДА_СВОЙ_PUBLISHABLE_KEY';
+    // ============================================
+
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let currentUser = null;
+    let currentProgress = null;
+    let fileBefore = null;
+    let fileAfter = null;
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const page = item.dataset.page;
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        item.classList.add('active');
+        document.getElementById('page-' + page).classList.add('active');
+        if (page === 'shop') loadShop();
+        if (page === 'players') loadPlayers();
+        if (page === 'admin') loadAdmin('pending');
+      });
+    });
+
+    async function api(path, options = {}) {
+      const res = await fetch('/api/' + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        ...options
+      });
+      return res.json();
+    }
+    async function apiGet(path) {
+      const res = await fetch('/api/' + path);
+      return res.json();
+    }
+
+    async function init() {
+      const user = tg.initDataUnsafe?.user;
+      if (!user) {
+        document.getElementById('nickname').textContent = 'Открой через Telegram';
+        return;
+      }
+      const result = await api('register', {
+        body: JSON.stringify({ telegram_id: user.id, nickname: user.first_name || 'Игрок' })
+      });
+      currentUser = result.user;
+      document.getElementById('nickname').textContent = currentUser.nickname;
+      document.getElementById('balance').textContent = '💰 ' + currentUser.balance;
+      if (currentUser.role === 'admin') {
+        document.getElementById('nav-admin').style.display = 'flex';
+      }
+      await loadProgress();
+    }
+
+    async function loadProgress() {
+      const result = await api('get-progress', {
+        body: JSON.stringify({ telegram_id: currentUser.telegram_id })
+      });
+      if (result.error) {
+        document.getElementById('stage-title').textContent = 'Ошибка';
+        document.getElementById('stage-desc').textContent = result.error;
+        return;
+      }
+      currentProgress = result;
+      const stage = result.stage;
+      if (stage) {
+        document.getElementById('stage-label').textContent = Этап ${stage.order_num} из 15;
+        document.getElementById('stage-title').textContent = stage.name;
+        document.getElementById('stage-desc').textContent = stage.description;
+        if (stage.building_image_url) {
+          const img = document.getElementById('stage-img');
+          img.src = stage.building_image_url;
+          img.style.display = 'block';
+        }
+      } else {
+        document.getElementById('stage-title').textContent = '🎉 Все этапы пройдены!';
+        document.getElementById('stage-desc').textContent = 'Тебе открыты премиум-задания.';
+      }
+      document.getElementById('balance').textContent = '💰 ' + result.user.balance;
+    }
+
+    document.getElementById('photo-before').addEventListener('change', e => {
+      fileBefore = e.target.files[0];
+      const btn = document.getElementById('btn-before');
+      btn.textContent = '✅ ' + fileBefore.name.slice(0, 30);
+      btn.classList.add('has-file');
+      checkReady();
+    });
+    document.getElementById('photo-after').addEventListener('change', e => {
+      fileAfter = e.target.files[0];
+      const btn = document.getElementById('btn-after');
+      btn.textContent = '✅ ' + fileAfter.name.slice(0, 30);
+      btn.classList.add('has-file');
+      checkReady();
+    });
+    function checkReady() {
+      document.getElementById('submit-btn').disabled = !(fileBefore && fileAfter);
+    }
+
+    async function uploadPhoto(file, prefix) {
+      const ext = file.name.
+        split('.').pop();
+      const fileName = ${currentUser.telegram_id}/${prefix}-${Date.now()}.${ext};
+      const { error } = await sb.storage.from('photos').upload(fileName, file, { upsert: false });
+      if (error) throw error;
+      const { data: urlData } = sb.storage.from('photos').getPublicUrl(fileName);
+      return urlData.publicUrl;
+    }
+
+    document.getElementById('submit-btn').addEventListener('click', async () => {
+      const status = document.getElementById('status');
+      const btn = document.getElementById('submit-btn');
+      if (!fileBefore || !fileAfter) return;
+      btn.disabled = true;
+      status.className = 'status loading';
+      status.textContent = '⏳ Загружаем фото...';
+      try {
+        const urlBefore = await uploadPhoto(fileBefore, 'before');
+        const urlAfter = await uploadPhoto(fileAfter, 'after');
+        status.textContent = '⏳ Отправляем на проверку...';
+        const stage = currentProgress.stage;
+        const result = await api('upload-submission', {
+          body: JSON.stringify({
+            telegram_id: currentUser.telegram_id,
+            stage_id: stage ? stage.order_num : null,
+            photo_before_url: urlBefore,
+            photo_after_url: urlAfter
+          })
+        });
+        if (result.error) throw new Error(result.error);
+        status.className = 'status success';
+        status.textContent = '✅ Работа отправлена! Жди проверки.';
+        fileBefore = null; fileAfter = null;
+        document.getElementById('btn-before').textContent = '📷 Фото «До» (контур)';
+        document.getElementById('btn-before').classList.remove('has-file');
+        document.getElementById('btn-after').textContent = '🎨 Фото «После» (раскраска)';
+        document.getElementById('btn-after').classList.remove('has-file');
+      } catch (err) {
+        status.className = 'status error';
+        status.textContent = '❌ ' + err.message;
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    async function loadShop() {
+      const grid = document.getElementById('shop-grid');
+      const result = await apiGet('get-shop');
+      if (result.error || !result.items) {
+        grid.innerHTML = '<div class="card">Ошибка загрузки магазина</div>';
+        return;
+      }
+      const owned = (currentProgress?.purchases || []).map(p => p.id);
+      grid.innerHTML = result.items.map(item => {
+        const isOwned = owned.includes(item.id);
+        const canBuy = currentUser.balance >= item.price && !isOwned;
+        return `
+          <div class="shop-card">
+            <div class="shop-name">${item.name}</div>
+            <div class="shop-price">💰 ${item.price}</div>
+            <button class="shop-buy ${isOwned ? 'owned' : ''}"
+                    ${(!canBuy) ? 'disabled' : ''}
+                    onclick="buyItem(${item.id})">
+              ${isOwned ? '✅ Куплено' : 'Купить'}
+            </button>
+          </div>`;
+      }).join('');
+    }
+
+    window.buyItem = async function(id) {
+      const result = await api('buy-item', {
+        body: JSON.stringify({ telegram_id: currentUser.telegram_id, shop_item_id: id })
+      });
+      if (result.error) { alert(result.error); return; }
+      currentUser.balance = result.new_balance;
+      document.getElementById('balance').textContent = '💰 ' + result.new_balance;
+      await loadProgress();
+      await loadShop();
+    };
+
+    async function loadPlayers() {
+      const list = document.getElementById('players-list');
+      const result = await apiGet('get-players');
+      if (!result.players || result.players.length === 0) {
+        list.innerHTML = '<div class="card">Пока нет других игроков</div>';
+        return;
+      }
+      list.innerHTML = result.players.map(p => `
+        <div class="player-row" onclick="showPlayer(${p.telegram_id})">
+          <div>
+            <div class="nick">${p.nickname}</div>
+            <div class="lvl">Этап ${p.current_stage}</div>
+          </div>
+          <div class="bal">💰 ${p.balance}</div>
+        </div>
+      `).join('');
+    }
+
+    window.showPlayer = async function(id) {
+      const result = await apiGet('get-player?telegram_id=' + id);
+      if (result.error) { alert(result.error); return; }
+      const u = result.user;
+      const purchases = result.purchases.map(p => p.name).join(', ') || 'Нет';
+      alert(`👤 ${u.nickname}\nЭтап: ${u.current_stage}\nБаланс: ${u.balance}\nУлучшения: ${purchases}`);
+    };
+
+    document.querySelectorAll('.admin-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        loadAdmin(tab.dataset.tab);
+      });
+    });
+
+    async function loadAdmin(tab = 'pending') {
+      const content = document.getElementById('admin-content');
+      content.innerHTML = 'Загрузка...';
+      const res = await fetch(`/api/admin-submissions?status=${tab}`);
+      const data = await res.json();
+      if (!data.submissions || data.submissions.length === 0) {
+        content.innerHTML = '<div class="card">Пусто</div>';
+        return;
+      }
+      content.innerHTML = data.submissions.map(s => `
+        <div class="sub-card">
+          <div><b>Игрок #${s.user_id}</b> • Этап ${s.stage_id || 'премиум'}</div>
+          <div class="sub-photos">
+            <img src="${s.photo_before_url}" alt="до">
+            <img src="${s.photo_after_url}" alt="после">
+          </div>
+          ${s.status === 'pending' ? `
+            <div class="sub-actions">
+              <input type="number" id="reward-${s.id}" placeholder="Монет" min="0">
+              <button class="approve" onclick="approveSub(${s.id})">✅</button>
+              <button class="reject" onclick="rejectSub(${s.id})">❌</button>
+            </div>` : `<div>Статус: ${s.status} • Награда: ${s.reward}</div>`}
+        </div>
+      `).join('');
+    }
+
+    window.approveSub = async function(id) {
+      const reward = parseInt(document.getElementById('reward-' + id).value);
+      if (isNaN(reward)) { alert('Введи число монет'); return; }
+      const res = await fetch('/api/admin-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submission_id: id, reward, admin_id: currentUser.telegram_id })
+      });
+      const data = await res.json();
+      if (data.error) { alert(data.error); return; }
+      loadAdmin('pending');
+    };
+
+    window.rejectSub = async function(id) {
+      const res = await fetch('/api/admin-reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submission_id: id, admin_id: currentUser.telegram_id })
+      });
+      const data = await res.json();
+      if (data.error) { alert(data.error); return; }
+      loadAdmin('pending');
+    };
+
+    init();
+  </script>
+</body>
+</html>
