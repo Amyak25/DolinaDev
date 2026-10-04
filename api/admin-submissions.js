@@ -12,21 +12,25 @@ module.exports = async (req, res) => {
     let submissions;
     if (status === 'pending') {
       submissions = await sql`
-        SELECT id, user_id, stage_id, premium_task_id,
-               photo_before_url, photo_after_url, status, reward, created_at
-        FROM submissions
-        WHERE status = 'pending'
-        ORDER BY created_at ASC
-      `;
+  SELECT s.id, s.user_id, s.stage_id, s.premium_task_id,
+         s.photo_before_url, s.photo_after_url, s.status, s.reward, s.created_at,
+         u.nickname
+  FROM submissions s
+  LEFT JOIN users u ON u.telegram_id = s.user_id
+  WHERE s.status = 'pending'
+  ORDER BY s.created_at ASC
+`;
     } else {
       submissions = await sql`
-        SELECT id, user_id, stage_id, premium_task_id,
-               photo_before_url, photo_after_url, status, reward, created_at
-        FROM submissions
-        WHERE status IN ('approved', 'rejected')
-        ORDER BY created_at DESC
-        LIMIT 100
-      `;
+  SELECT s.id, s.user_id, s.stage_id, s.premium_task_id,
+         s.photo_before_url, s.photo_after_url, s.status, s.reward, s.created_at,
+         u.nickname
+  FROM submissions s
+  LEFT JOIN users u ON u.telegram_id = s.user_id
+  WHERE s.status IN ('approved', 'rejected')
+  ORDER BY s.created_at DESC
+  LIMIT 100
+`;
     }
 
     return res.status(200).json({ submissions });
