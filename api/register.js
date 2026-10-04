@@ -37,10 +37,11 @@ module.exports = async (req, res) => {
     `;
 
     // Создаём запись прогресса
-    await sql`
-      INSERT INTO user_progress (user_id, current_stage, premium_unlocked)
-      VALUES (${telegram_id}, 1, false)
-    `;
+   await sql`
+  INSERT INTO user_progress (user_id, current_stage, premium_unlocked, completed_premium)
+  VALUES (${Number(telegram_id)}, 1, false, '{}')
+  ON CONFLICT (user_id) DO NOTHING
+`;
 
     return res.status(200).json({
       registered: true,
