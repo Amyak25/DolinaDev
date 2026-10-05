@@ -60,6 +60,13 @@
     .premium-badge { display: inline-block; padding: 4px 10px; background: linear-gradient(135deg, #F39C12, #E67E22); color: white; border-radius: 8px; font-size: 11px; font-weight: 700; margin-bottom: 6px; }
     .completed-badge { margin-top: 12px; padding: 10px; background: #D5F4E6; color: #27AE60; border-radius: 10px; text-align: center; font-weight: 700; }
     .locked-msg { padding: 20px; text-align: center; color: #7F8C8D; font-size: 14px; line-height: 1.5; }
+    .awards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+    .award-card { text-align: center; }
+    .award-img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 12px; background: #ECF0F1; transition: filter 0.3s; }
+    .award-img.locked { filter: grayscale(100%) brightness(0.85); opacity: 0.7; }
+    .award-name { font-size: 10px; font-weight: 700; margin-top: 4px; line-height: 1.2; }
+    .award-cond { font-size: 9px; color: #7F8C8D; margin-top: 2px; }
+    .award-unlocked .award-name { color: #27AE60; }
   </style>
 </head>
 <body>
@@ -76,6 +83,12 @@
         <div class="stage-desc" id="stage-desc">Подождите...</div>
         <img class="stage-img" id="stage-img" src="" alt="" style="display:none">
       </div>
+
+      <div class="card">
+        <div class="section-title" style="margin-top:0;">🏆 Награды</div>
+        <div class="awards-grid" id="awards-grid">Загрузка...</div>
+      </div>
+
       <div class="card">
         <div class="stage-label">Загрузить работу</div>
         <button class="file-btn" id="btn-before" type="button">📷 Фото «До» (контур)</button>
@@ -123,7 +136,7 @@
 
   <script>
     const SUPABASE_URL = 'https://fmvodfnonmdjzfjkagvo.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_F9CEHRMsxKkTK1_Sfr9rQQ_9ZKXIHNH';
+    const SUPABASE_KEY = 'ВСТАВЬ_СЮДА_СВОЙ_PUBLISHABLE_KEY';
 
     const tg = window.Telegram.WebApp;
     tg.ready();
@@ -180,6 +193,7 @@
         document.getElementById('nav-admin').style.display = 'flex';
       }
       await loadProgress();
+      await loadAwards();
     }
 
     async function loadProgress() {
@@ -211,6 +225,41 @@
       if (result.progress && result.progress.premium_unlocked) {
         document.getElementById('nav-premium').style.display = 'flex';
       }
+    }
+
+    async function loadAwards() {
+      const grid = document.getElementById('awards-grid');
+      const result = await api('get-awards', {
+        body: JSON.stringify({ telegram_id: currentUser.telegram_id })
+      });
+
+      if (result.error || !result.awards) {
+        grid.innerHTML = '<div style="font-size:12px; color:#7F8C8D;">Ошибка загрузки наград</div>';
+        return;
+      }
+
+      let html = '';
+      result.awards.forEach(function(a) {
+        const lockedClass = a.unlocked ? '' : 'locked';
+        const cardClass = a.unlocked ? 'award-card award-unlocked' : 'award-card';
+
+        let condText = '';
+        if (a.max_purchases === null) {
+          condText = a.min_purchases + '+ улучшений';
+        } else if (a.min_purchases === a.max_purchases) {
+          condText = a.min_purchases + ' улучшений';
+        } else {
+          condText = a.min_purchases + '–' + a.max_purchases + ' улучшений';
+        }
+
+        html += '<div class="' + cardClass + '">';
+        html += '<img class="award-img ' + lockedClass + '" src="' + a.image_url + '" alt="' + a.name + '">';
+        html += '<div class="award-name">' + a.name + '</div>';
+        html += '<div class="award-cond">' + condText + '</div>';
+        html += '</div>';
+      });
+
+      grid.innerHTML = html;
     }
 
     document.getElementById('btn-before').addEventListener('click', function(e) {
@@ -316,6 +365,7 @@
       currentUser.balance = result.new_balance;
       document.getElementById('balance').textContent = '💰 ' + result.new_balance;
       await loadProgress();
+      await loadAwards();
       await loadShop();
     };
 
@@ -479,12 +529,12 @@
     };
 
     document.querySelectorAll('.admin-tab').forEach(function(tab) {
-  tab.addEventListener('click', function() {
-    document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
-    tab.classList.add('active');
-    loadAdmin(tab.dataset.tab);
-  });
-});
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
+        tab.classList.add('active');
+        loadAdmin(tab.dataset.tab);
+      });
+    });
 
     async function loadAdmin(tab) {
       tab = tab || 'pending';
@@ -538,7 +588,7 @@
         html += '<div><b>' + nick + '</b> • ' + type + '</div>';
         html += '<div class="sub-photos">';
         html += '<img src="' + s.photo_before_url + '" alt="до">';
-        html += '<img src="' + s.photo_after_url + '" alt="после">';
+        html += '<img src=" + s.photo_after_url + '" alt="после">';
         html += '</div>';
         if (s.status === 'pending') {
           html += '<div class="sub-actions">';
@@ -602,7 +652,7 @@
         const res = await fetch('/api/admin-approve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ submission_id: id, reward: reward, admin_id: currentUser.telegram_id })
+          body: JSON.stringify({ submission_id: id, reward: reward, admin_id: currentUser.telegram_id })
         });
         const data = await res.json();
         if (data.error) { alert('Ошибка сервера: ' + data.error); return; }
