@@ -11,6 +11,11 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'telegram_id обязателен' });
     }
 
+    const telegramIdNum = Number(telegramId);
+    if (isNaN(telegramIdNum)) {
+      return res.status(400).json({ error: 'Некорректный telegram_id' });
+    }
+
     const sql = neon(process.env.DATABASE_URL);
 
     const user = await sql`
@@ -18,23 +23,34 @@ module.exports = async (req, res) => {
              COALESCE(p.current_stage, 1) AS current_stage
       FROM users u
       LEFT JOIN user_progress p ON p.user_id = u.telegram_id
-      WHERE u.telegram_id = ${telegramId}
+      WHERE u.telegram_id = ${telegramIdNum}
     `;
     if (user.length === 0) {
       return res.status(404).json({ error: 'Игрок не найден' });
     }
 
+    const stage = await sql`
+      SELECT id, order_num, name, building_image_url
+      FROM stages
+      WHERE order_num = ${user[0].current_stage}
+    `;
+
     const purchases = await sql`
       SELECT s.id, s.name, s.price
       FROM user_purchases up
       JOIN shop_items s ON s.id = up.shop_item_id
-      WHERE up.user_id = ${telegramId}
-      ORDER BY up.purchased_at DESC
+      WHERE up.user_id = ${telegramIdNum}
+      ORDER BY up.purchased_at ASC
     `;
 
-    return res.status(200).json({ user: user[0], purchases });
+    return res.status(200).json({
+      user: user[0],
+      stage: stage[0] || null,
+      purchases
+    });
+
   } catch (err) {
-    console.error(err);
+    console.error('Ошибка get-player:', err);
     return res.status(500).json({ error: err.message });
   }
 };
