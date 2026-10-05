@@ -168,7 +168,7 @@
       </div>
 
       <div class="page" id="page-players">
-        <div class="section-title">👥 Игроки</div>
+        <div class="section-title" id="players-title">👥 Игроки</div>
         <div id="players-list">Загрузка...</div>
       </div>
 
@@ -668,13 +668,20 @@
 
     async function loadPlayers() {
       const list = document.getElementById('players-list');
+      const title = document.getElementById('players-title');
       const result = await apiGet('get-players');
-      if (!result.players || result.players.length === 0) {
+
+      const players = result.players || [];
+
+      title.textContent = '👥 Игроки (' + players.length + ')';
+
+      if (players.length === 0) {
         list.innerHTML = '<div class="card">Пока нет других игроков</div>';
         return;
       }
+
       let html = '';
-      result.players.forEach(function(p) {
+      players.forEach(function(p) {
         html += '<div class="player-row" onclick="showPlayer(' + p.telegram_id + ')">';
         html += '<div><div class="nick">' + p.nickname + '</div>';
         html += '<div class="lvl">Этап ' + p.current_stage + '</div></div>';
