@@ -479,11 +479,12 @@
     };
 
     document.querySelectorAll('.admin-tab').forEach(function(tab) {
-      tab.addEventListener('click', function() {
-        document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
-        tab.classList.add('active');
-        loadAdmin(tab.dataset.tab);
-      });
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
+    tab.classList.add('active');
+    loadAdmin(tab.dataset.tab);
+  });
+});
 
     async function loadAdmin(tab) {
       tab = tab || 'pending';
@@ -601,3 +602,32 @@
         const res = await fetch('/api/admin-approve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ submission_id: id, reward: reward, admin_id: currentUser.telegram_id })
+        });
+        const data = await res.json();
+        if (data.error) { alert('Ошибка сервера: ' + data.error); return; }
+        loadAdmin('pending');
+      } catch (err) {
+        alert('Ошибка сети: ' + err.message);
+      }
+    };
+
+    window.rejectSub = async function(id) {
+      try {
+        const res = await fetch('/api/admin-reject', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ submission_id: id, admin_id: currentUser.telegram_id })
+        });
+        const data = await res.json();
+        if (data.error) { alert('Ошибка: ' + data.error); return; }
+        loadAdmin('pending');
+      } catch (err) {
+        alert('Ошибка сети: ' + err.message);
+      }
+    };
+
+    init();
+  </script>
+</body>
+</html>
