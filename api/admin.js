@@ -39,25 +39,41 @@ module.exports = async (req, res) => {
 
       if (status === 'pending') {
         submissions = await sql`
-          SELECT s.id, s.user_id, s.stage_id, s.premium_task_id,
-                 s.photo_before_url, s.photo_after_url, s.status, s.reward, s.created_at,
-                 u.nickname
-          FROM submissions s
-          LEFT JOIN users u ON u.telegram_id = s.user_id
-          WHERE s.status = 'pending'
-          ORDER BY s.created_at ASC
-        `;
+  SELECT s.id, s.user_id, s.stage_id, s.premium_task_id,
+         s.photo_before_url, s.photo_after_url, s.status, s.reward, s.created_at,
+         u.nickname,
+         st.name AS stage_name,
+         st.description AS stage_description,
+         st.order_num AS stage_order_num,
+         pt.name AS premium_name,
+         pt.description AS premium_description,
+         pt.order_num AS premium_order_num
+  FROM submissions s
+  LEFT JOIN users u ON u.telegram_id = s.user_id
+  LEFT JOIN stages st ON st.id = s.stage_id
+  LEFT JOIN premium_tasks pt ON pt.id = s.premium_task_id
+  WHERE s.status = 'pending'
+  ORDER BY s.created_at ASC
+`;
       } else {
         submissions = await sql`
-          SELECT s.id, s.user_id, s.stage_id, s.premium_task_id,
-                 s.photo_before_url, s.photo_after_url, s.status, s.reward, s.created_at,
-                 u.nickname
-          FROM submissions s
-          LEFT JOIN users u ON u.telegram_id = s.user_id
-          WHERE s.status IN ('approved', 'rejected')
-          ORDER BY s.created_at DESC
-          LIMIT 100
-        `;
+  SELECT s.id, s.user_id, s.stage_id, s.premium_task_id,
+         s.photo_before_url, s.photo_after_url, s.status, s.reward, s.created_at,
+         u.nickname,
+         st.name AS stage_name,
+         st.description AS stage_description,
+         st.order_num AS stage_order_num,
+         pt.name AS premium_name,
+         pt.description AS premium_description,
+         pt.order_num AS premium_order_num
+  FROM submissions s
+  LEFT JOIN users u ON u.telegram_id = s.user_id
+  LEFT JOIN stages st ON st.id = s.stage_id
+  LEFT JOIN premium_tasks pt ON pt.id = s.premium_task_id
+  WHERE s.status IN ('approved', 'rejected')
+  ORDER BY s.created_at DESC
+  LIMIT 100
+`;
       }
 
       return res.status(200).json({ submissions });
