@@ -136,6 +136,16 @@
       margin-top: 10px;
     }
     .refresh-btn:active { background: #EBF5FB; }
+    .sub-task-desc {
+      font-size: 13px;
+      color: #34495E;
+      margin-top: 6px;
+      padding: 8px 10px;
+      background: #F8F9FA;
+      border-left: 3px solid #3498DB;
+      border-radius: 6px;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
@@ -285,7 +295,6 @@
       return res.json();
     }
 
-    // === ПРОСМОТР ФОТО ===
     window.openLightbox = function(url) {
       const lightbox = document.getElementById('photo-lightbox');
       const img = document.getElementById('photo-lightbox-img');
@@ -301,7 +310,6 @@
       }, 300);
     };
 
-    // === ДЕДЛАЙН ===
     async function loadSeason() {
       const result = await apiGet('get-season');
 
@@ -404,7 +412,6 @@
         document.getElementById('nav-premium').style.display = 'flex';
       }
 
-      // Проверяем, есть ли активная заявка
       hasPendingSubmission = !!result.pending_submission;
       updateUploadUI();
     }
@@ -885,9 +892,16 @@
       let html = '';
       data.submissions.forEach(function(s) {
         const nick = s.nickname ? s.nickname : ('Игрок #' + s.user_id);
-        const type = s.premium_task_id ? 'Премиум-' + s.premium_task_id : 'Этап ' + (s.stage_id || '?');
+        const type = s.premium_task_id
+          ? 'Премиум-' + (s.premium_order_num || s.premium_task_id)
+          : 'Этап ' + (s.stage_order_num || s.stage_id || '?');
+        const taskDesc = s.premium_task_id ? s.premium_description : s.stage_description;
+
         html += '<div class="sub-card">';
         html += '<div><b>' + nick + '</b> • ' + type + '</div>';
+        if (taskDesc) {
+          html += '<div class="sub-task-desc">📝 ' + taskDesc + '</div>';
+        }
         html += '<div class="sub-photos">';
         html += '<img src="' + s.photo_before_url + '" alt="до" onclick="event.stopPropagation(); openLightbox(\'' + s.photo_before_url + '\')">';
         html += '<img src="' + s.photo_after_url + '" alt="после" onclick="event.stopPropagation(); openLightbox(\'' + s.photo_after_url + '\')">';
