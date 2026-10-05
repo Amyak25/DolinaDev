@@ -55,7 +55,7 @@
     .admin-tab.active { background: #3498DB; color: white; }
     .sub-card { background: white; border-radius: 14px; padding: 14px; margin-bottom: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.05); }
     .sub-photos { display: flex; gap: 8px; margin: 10px 0; }
-    .sub-photos img { flex: 1; height: 120px; object-fit: cover; border-radius: 10px; background: #ECF0F1; }
+    .sub-photos img { flex: 1; height: 120px; object-fit: cover; border-radius: 10px; background: #ECF0F1; cursor: pointer; }
     .sub-actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
     .sub-actions input { flex: 1; min-width: 0; padding: 10px; border: 2px solid #ECF0F1; border-radius: 10px; font-size: 14px; outline: none; }
     .action-btn { padding: 10px 16px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 16px; color: white; }
@@ -86,6 +86,38 @@
     .game-over-icon { font-size: 80px; margin-bottom: 20px; }
     .game-over-title { font-size: 32px; font-weight: 800; color: #E74C3C; margin-bottom: 12px; }
     .game-over-text { font-size: 16px; color: #7F8C8D; line-height: 1.6; }
+    .photo-lightbox {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .photo-lightbox.active { display: flex; }
+    .photo-lightbox img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+    .photo-lightbox-close {
+      position: absolute;
+      top: 16px; right: 16px;
+      width: 44px; height: 44px;
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: white;
+      font-size: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -169,12 +201,17 @@
         <div class="game-over-icon">🎮</div>
         <div class="game-over-title">Игра окончена</div>
         <div class="game-over-text">
-          Спасибо за участие в игре «Долина Дев»!<br><br>
+          Спасибо за участие в игре «Долина»!<br><br>
           Игра завершена 30 ноября 2026 года.<br>
           Спасибо всем, кто строил свою деревню! 🌳
         </div>
       </div>
     </div>
+  </div>
+
+  <div class="photo-lightbox" id="photo-lightbox" onclick="closeLightbox()">
+    <button type="button" class="photo-lightbox-close" onclick="closeLightbox()">✕</button>
+    <img id="photo-lightbox-img" src="" alt="">
   </div>
 
   <script>
@@ -223,6 +260,22 @@
       return res.json();
     }
 
+    // === ПРОСМОТР ФОТО ===
+    window.openLightbox = function(url) {
+      const lightbox = document.getElementById('photo-lightbox');
+      const img = document.getElementById('photo-lightbox-img');
+      img.src = url;
+      lightbox.classList.add('active');
+    };
+
+    window.closeLightbox = function() {
+      const lightbox = document.getElementById('photo-lightbox');
+      lightbox.classList.remove('active');
+      setTimeout(function() {
+        document.getElementById('photo-lightbox-img').src = '';
+      }, 300);
+    };
+
     // === ДЕДЛАЙН ===
     async function loadSeason() {
       const result = await apiGet('get-season');
@@ -266,7 +319,7 @@
         else text += minutes + ' мин';
 
         timerText.textContent = text;
-        remaining -= 60; // обновляем раз в минуту
+        remaining -= 60;
       }
 
       update();
@@ -274,7 +327,6 @@
     }
 
     async function init() {
-      // Сначала проверяем дедлайн
       await loadSeason();
 
       if (gameFinished) return;
@@ -759,8 +811,8 @@
         html += '<div class="sub-card">';
         html += '<div><b>' + nick + '</b> • ' + type + '</div>';
         html += '<div class="sub-photos">';
-        html += '<img src="' + s.photo_before_url + '" alt="до">';
-        html += '<img src="' + s.photo_after_url + '" alt="после">';
+        html += '<img src="' + s.photo_before_url + '" alt="до" onclick="event.stopPropagation(); openLightbox(\'' + s.photo_before_url + '\')">';
+        html += '<img src="' + s.photo_after_url + '" alt="после" onclick="event.stopPropagation(); openLightbox(\'' + s.photo_after_url + '\')">';
         html += '</div>';
         if (s.status === 'pending') {
           html += '<div class="sub-actions">';
