@@ -107,6 +107,7 @@
       <div class="admin-tabs">
         <div class="admin-tab active" data-tab="pending">Очередь</div>
         <div class="admin-tab" data-tab="history">История</div>
+        <div class="admin-tab" data-tab="admins">Админы</div>
       </div>
       <div id="admin-content">Загрузка...</div>
     </div>
@@ -179,11 +180,6 @@
         document.getElementById('nav-admin').style.display = 'flex';
       }
       await loadProgress();
-
-      // Показываем вкладку Премиум, если открыт
-      if (currentProgress && currentProgress.progress && currentProgress.progress.premium_unlocked) {
-        document.getElementById('nav-premium').style.display = 'flex';
-      }
     }
 
     async function loadProgress() {
@@ -212,7 +208,6 @@
       }
       document.getElementById('balance').textContent = '💰 ' + result.user.balance;
 
-      // Обновляем видимость вкладки Премиум
       if (result.progress && result.progress.premium_unlocked) {
         document.getElementById('nav-premium').style.display = 'flex';
       }
@@ -324,7 +319,6 @@
       await loadShop();
     };
 
-    // === ПРЕМИУМ ===
     async function loadPremium() {
       const content = document.getElementById('premium-content');
       content.innerHTML = 'Загрузка...';
@@ -363,7 +357,6 @@
 
       content.innerHTML = html;
 
-      // Скрытый блок загрузки для премиума
       if (!document.getElementById('premium-upload-block')) {
         const block = document.createElement('div');
         block.id = 'premium-upload-block';
@@ -400,18 +393,15 @@
           const btn = document.getElementById('p-btn-before');
           btn.textContent = '✅ ' + pFileBefore.name.slice(0, 30);
           btn.classList.add('has-file');
-          checkPremiumReady(pFileBefore, pFileAfter);
+          document.getElementById('p-submit-btn').disabled = !(pFileBefore && pFileAfter);
         });
         document.getElementById('p-photo-after').addEventListener('change', function(e) {
           pFileAfter = e.target.files[0];
           const btn = document.getElementById('p-btn-after');
           btn.textContent = '✅ ' + pFileAfter.name.slice(0, 30);
           btn.classList.add('has-file');
-          checkPremiumReady(pFileBefore, pFileAfter);
+          document.getElementById('p-submit-btn').disabled = !(pFileBefore && pFileAfter);
         });
-        function checkPremiumReady(a, b) {
-          document.getElementById('p-submit-btn').disabled = !(a && b);
-        }
 
         document.getElementById('p-submit-btn').addEventListener('click', async function() {
           const status = document.getElementById('p-status');
@@ -500,6 +490,40 @@
       tab = tab || 'pending';
       const content = document.getElementById('admin-content');
       content.innerHTML = 'Загрузка...';
+
+      if (tab === 'admins') {
+        const result = await api('admin-manage', {
+          body: JSON.stringify({ action: 'list', admin_id: currentUser.telegram_id })
+        });
+        if (result.error) {
+          content.innerHTML = '<div class="card">Ошибка: ' + result.error + '</div>';
+          return;
+        }
+        let html = '<div class="card">';
+        html += '<div style="font-weight:800; margin-bottom:10px;">Добавить админа</div>';
+        html += '<div class="sub-actions">';
+        html += '<input type="number" id="new-admin-id" placeholder="Telegram ID" min="1">';
+        html += '<button type="button" class="action-btn approve" onclick="addAdmin()">➕</button>';
+        html += '</div>';
+        html += '<div style="font-size:12px; color:#7F8C8D; margin-top:8px;">Игрок должен сначала зайти в игру, чтобы его ID появился в базе.</div>';
+        html += '</div>';
+
+        html += '<div class="section-title">Текущие админы</div>';
+        result.admins.forEach(function(a) {
+          const isMe = a.telegram_id === currentUser.telegram_id;
+          html += '<div class="player-row">';
+          html += '<div><div class="nick">' + a.nickname + (isMe ? ' (ты)' : '') + '</div>';
+          html += '<div class="lvl">ID: ' + a.telegram_id + '</div></div>';
+          if (!isMe) {
+            html += '<button type="button" class="action-btn reject" onclick="removeAdmin(' + a.telegram_id + ')">🗑️</button>';
+          }
+          html += '</div>';
+        });
+
+        content.innerHTML = html;
+        return;
+      }
+
       const res = await fetch('/api/admin-submissions?status=' + tab);
       const data = await res.json();
       if (!data.submissions || data.submissions.length === 0) {
@@ -539,6 +563,36 @@
       });
     }
 
+    window.addAdmin = async function() {
+      const input = document.getElementById('new-admin-id');
+      const targetId = parseInt(input.value);
+      if (isNaN(targetId)) { alert('Введи Telegram ID'); return; }
+      const result = await api('admin-manage', {
+        body: JSON.stringify({
+          action: 'add',
+          admin_id: currentUser.telegram_id,
+          target_id: targetId
+        })
+      });
+      if (result.error) { alert(result.error); return; }
+      alert('✅ ' + result.nickname + ' теперь админ!');
+      loadAdmin('admins');
+    };
+
+    window.removeAdmin = async function(targetId) {
+      if (!confirm('Точно снять админку?')) return;
+      const result = await api('admin-manage', {
+        body: JSON.stringify({
+          action: 'remove',
+          admin_id: currentUser.telegram_id,
+          target_id: targetId
+        })
+      });
+      if (result.error) { alert(result.error); return; }
+      alert('✅ Админка снята');
+      loadAdmin('admins');
+    };
+
     window.approveSub = async function(id) {
       const input = document.getElementById('reward-' + id);
       if (!input) { alert('Поле ввода не найдено'); return; }
@@ -548,32 +602,3 @@
         const res = await fetch('/api/admin-approve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ submission_id: id, reward: reward, admin_id: currentUser.telegram_id })
-        });
-        const data = await res.json();
-        if (data.error) { alert('Ошибка сервера: ' + data.error); return; }
-        loadAdmin('pending');
-      } catch (err) {
-        alert('Ошибка сети: ' + err.message);
-      }
-    };
-
-    window.rejectSub = async function(id) {
-      try {
-        const res = await fetch('/api/admin-reject', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ submission_id: id, admin_id: currentUser.telegram_id })
-        });
-        const data = await res.json();
-        if (data.error) { alert('Ошибка: ' + data.error); return; }
-        loadAdmin('pending');
-      } catch (err) {
-        alert('Ошибка сети: ' + err.message);
-      }
-    };
-
-    init();
-  </script>
-</body>
-</html>
