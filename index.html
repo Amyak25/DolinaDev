@@ -170,6 +170,14 @@
     }
     .sub-photos { display: flex; gap: 8px; margin: 10px 0; }
     .sub-photos img { flex: 1; height: 120px; object-fit: cover; border-radius: 10px; background: #ECF0F1; cursor: pointer; }
+    .photo-placeholder {
+      flex: 1; height: 120px;
+      background: #FADBD8;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      color: #E74C3C; font-size: 12px; font-weight: 700;
+      text-align: center; padding: 8px;
+    }
     .sub-actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
     .sub-actions input { flex: 1; min-width: 0; padding: 10px; border: 2px solid #ECF0F1; border-radius: 10px; font-size: 14px; outline: none; background: rgba(255,255,255,0.9); }
     .action-btn { padding: 10px 16px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 16px; color: white; }
@@ -431,6 +439,7 @@
     }
 
     window.openLightbox = function(url) {
+      if (!url) return;
       const lightbox = document.getElementById('photo-lightbox');
       const img = document.getElementById('photo-lightbox-img');
       img.src = url;
@@ -619,7 +628,7 @@
         }
 
         html += '<div class="' + cardClass + '">';
-        html += '<img class="award-img ' + lockedClass + '" src="' + a.image_url + '" alt="' + a.name + '">';
+        html += '<img class="award-img ' + lockedClass + '" src="' + a.image_url + '" alt="' + a.name + '" loading="lazy">';
         html += '<div class="award-name">' + a.name + '</div>';
         html += '<div class="award-cond">' + condText + '</div>';
         html += '</div>';
@@ -937,7 +946,7 @@
         html += '<div class="stage-label">Этап ' + stage.order_num + '</div>';
         html += '<div class="stage-title">' + stage.name + '</div>';
         if (stage.building_image_url) {
-          html += '<img class="other-stage-img" src="' + stage.building_image_url + '" alt="' + stage.name + '">';
+          html += '<img class="other-stage-img" src="' + stage.building_image_url + '" alt="' + stage.name + '" loading="lazy">';
         }
         html += '</div>';
       }
@@ -1040,12 +1049,23 @@
             html += '<div class="sub-task-desc">📝 ' + taskDesc + '</div>';
           }
           html += '<div class="sub-photos">';
-          if (s.photo_before_url) {
-            html += '<img src="' + s.photo_before_url + '" alt="до" onclick="event.stopPropagation(); openLightbox(\'' + s.photo_before_url + '\')">';
+
+          if (s.photo_before_url && s.photo_before_url.length > 5) {
+            html += '<img src="' + s.photo_before_url + '" alt="до" loading="lazy" ' +
+              'onerror="this.onerror=null; this.style.display=\'none\'; this.parentNode.insertAdjacentHTML(\'afterbegin\', \'<div class=&quot;photo-placeholder&quot;>❌ Фото удалено</div>\');" ' +
+              'onclick="event.stopPropagation(); openLightbox(\'' + s.photo_before_url + '\')">';
+          } else {
+            html += '<div class="photo-placeholder">Нет фото</div>';
           }
-          if (s.photo_after_url) {
-            html += '<img src="' + s.photo_after_url + '" alt="после" onclick="event.stopPropagation(); openLightbox(\'' + s.photo_after_url + '\')">';
+
+          if (s.photo_after_url && s.photo_after_url.length > 5) {
+            html += '<img src="' + s.photo_after_url + '" alt="после" loading="lazy" ' +
+              'onerror="this.onerror=null; this.style.display=\'none\'; this.parentNode.insertAdjacentHTML(\'afterbegin\', \'<div class=&quot;photo-placeholder&quot;>❌ Фото удалено</div>\');" ' +
+              'onclick="event.stopPropagation(); openLightbox(\'' + s.photo_after_url + '\')">';
+          } else {
+            html += '<div class="photo-placeholder">Нет фото</div>';
           }
+
           html += '</div>';
           if (s.status === 'pending') {
             html += '<div class="sub-actions">';
