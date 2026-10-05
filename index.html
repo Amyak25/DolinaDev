@@ -67,6 +67,17 @@
     .award-name { font-size: 10px; font-weight: 700; margin-top: 4px; line-height: 1.2; }
     .award-cond { font-size: 9px; color: #7F8C8D; margin-top: 2px; }
     .award-unlocked .award-name { color: #27AE60; }
+    .back-btn { background: #ECF0F1; color: #2C3E50; box-shadow: none; margin-top: 0; margin-bottom: 14px; }
+    .other-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: white; border-radius: 20px; margin-bottom: 14px; box-shadow: 0 6px 20px rgba(0,0,0,0.06); }
+    .other-header-left { display: flex; flex-direction: column; gap: 4px; }
+    .other-nick { font-size: 20px; font-weight: 800; color: #2C3E50; }
+    .other-stage-line { font-size: 13px; color: #7F8C8D; font-weight: 600; }
+    .other-bal { font-size: 20px; font-weight: 800; color: #F39C12; }
+    .other-stage-card { background: white; border-radius: 20px; padding: 20px; margin-bottom: 14px; box-shadow: 0 6px 20px rgba(0,0,0,0.06); }
+    .other-stage-img { width: 100%; height: 200px; object-fit: cover; border-radius: 14px; margin-top: 14px; background: #ECF0F1; }
+    .other-purchases { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .other-purchase-item { padding: 8px 12px; background: #D5F4E6; color: #27AE60; border-radius: 10px; font-size: 13px; font-weight: 700; }
+    .other-empty { color: #95A5A6; font-style: italic; font-size: 13px; padding: 8px 0; }
   </style>
 </head>
 <body>
@@ -113,6 +124,11 @@
     <div class="page" id="page-players">
       <div class="section-title">👥 Игроки</div>
       <div id="players-list">Загрузка...</div>
+    </div>
+
+    <div class="page" id="page-other-player">
+      <button type="button" class="btn back-btn" onclick="backToPlayers()">← Назад к игрокам</button>
+      <div id="other-player-content">Загрузка...</div>
     </div>
 
     <div class="page" id="page-admin">
@@ -334,7 +350,7 @@
       }
     });
 
-        async function loadShop() {
+    async function loadShop() {
       const grid = document.getElementById('shop-grid');
 
       const unlocked = currentProgress && currentProgress.progress && currentProgress.progress.premium_unlocked;
@@ -526,14 +542,65 @@
     }
 
     window.showPlayer = async function(id) {
+      const content = document.getElementById('other-player-content');
+      content.innerHTML = '<div style="text-align:center; padding:30px; color:#95A5A6;">Загрузка...</div>';
+
+      document.querySelectorAll('.nav-item').forEach(function(i) { i.classList.remove('active'); });
+      document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+      document.getElementById('page-other-player').classList.add('active');
+
       const result = await apiGet('get-player?telegram_id=' + id);
-      if (result.error) { alert(result.error); return; }
-      const u = result.user;
-      let purchases = 'Нет';
-      if (result.purchases && result.purchases.length > 0) {
-        purchases = result.purchases.map(function(p) { return p.name; }).join(', ');
+      if (result.error) {
+        content.innerHTML = '<div class="card">Ошибка: ' + result.error + '</div>';
+        return;
       }
-      alert('👤 ' + u.nickname + '\nЭтап: ' + u.current_stage + '\nБаланс: ' + u.balance + '\nУлучшения: ' + purchases);
+
+      const u = result.user;
+      const stage = result.stage;
+      const purchases = result.purchases || [];
+
+      let html = '';
+
+      html += '<div class="other-header">';
+      html += '<div class="other-header-left">';
+      html += '<div class="other-nick">👤 ' + u.nickname + '</div>';
+      html += '<div class="other-stage-line">🏠 Этап ' + u.current_stage + ' из 15</div>';
+      html += '</div>';
+      html += '<div class="other-bal">💰 ' + u.balance + '</div>';
+      html += '</div>';
+
+      if (stage) {
+        html += '<div class="other-stage-card">';
+        html += '<div class="stage-label">Этап ' + stage.order_num + '</div>';
+        html += '<div class="stage-title">' + stage.name + '</div>';
+        if (stage.building_image_url) {
+          html += '<img class="other-stage-img" src="' + stage.building_image_url + '" alt="' + stage.name + '">';
+        }
+        html += '</div>';
+      }
+
+      html += '<div class="other-stage-card">';
+      html += '<div class="section-title" style="margin-top:0;">🛒 Улучшения (' + purchases.length + ')</div>';
+      if (purchases.length === 0) {
+        html += '<div class="other-empty">Пока ничего не куплено</div>';
+      } else {
+        html += '<div class="other-purchases">';
+        purchases.forEach(function(p) {
+          html += '<div class="other-purchase-item">✅ ' + p.name + '</div>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+
+      content.innerHTML = html;
+    };
+
+    window.backToPlayers = function() {
+      document.querySelectorAll('.nav-item').forEach(function(i) { i.classList.remove('active'); });
+      document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+      document.querySelector('.nav-item[data-page="players"]').classList.add('active');
+      document.getElementById('page-players').classList.add('active');
+      loadPlayers();
     };
 
     document.querySelectorAll('.admin-tab').forEach(function(tab) {
