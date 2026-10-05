@@ -334,8 +334,16 @@
       }
     });
 
-    async function loadShop() {
+        async function loadShop() {
       const grid = document.getElementById('shop-grid');
+
+      const unlocked = currentProgress && currentProgress.progress && currentProgress.progress.premium_unlocked;
+      if (!unlocked) {
+        const stageNum = (currentProgress && currentProgress.stage) ? currentProgress.stage.order_num : 1;
+        grid.innerHTML = '<div class="card locked-msg">🔒 Магазин откроется после прохождения всех 15 этапов.<br><br>Сейчас ты на <b>Этапе ' + stageNum + '</b>.</div>';
+        return;
+      }
+
       const result = await apiGet('get-shop');
       if (result.error || !result.items) {
         grid.innerHTML = '<div class="card">Ошибка загрузки магазина</div>';
