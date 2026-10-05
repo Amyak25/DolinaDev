@@ -97,27 +97,45 @@
       padding: 16px;
     }
     .photo-lightbox.active { display: flex; }
-    .photo-lightbox img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      border-radius: 8px;
-    }
+    .photo-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
     .photo-lightbox-close {
-      position: absolute;
-      top: 16px; right: 16px;
+      position: absolute; top: 16px; right: 16px;
       width: 44px; height: 44px;
       background: rgba(255,255,255,0.15);
-      border: none;
+      border: none; color: white; font-size: 28px;
+      border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+    }
+    .pending-banner {
+      padding: 14px 16px;
+      background: linear-gradient(135deg, #F39C12, #E67E22);
       color: white;
-      font-size: 28px;
-      border-radius: 50%;
-      cursor: pointer;
+      border-radius: 14px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 12px rgba(243,156,18,0.3);
+    }
+    .pending-banner .icon { font-size: 18px; margin-right: 6px; }
+    .refresh-btn {
       display: flex;
       align-items: center;
       justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 12px;
+      background: white;
+      border: 2px solid #3498DB;
+      color: #3498DB;
+      border-radius: 12px;
+      font-size: 14px;
       font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
     }
+    .refresh-btn:active { background: #EBF5FB; }
   </style>
 </head>
 <body>
@@ -134,6 +152,11 @@
       </div>
 
       <div class="page active" id="page-city">
+        <div class="pending-banner" id="pending-banner" style="display:none;">
+          <span class="icon">⏳</span>
+          Твоя работа на проверке. Дождись ответа админа.
+        </div>
+
         <div class="card">
           <div class="stage-label" id="stage-label">Этап 1 из 15</div>
           <div class="stage-title" id="stage-title">Загрузка...</div>
@@ -153,6 +176,7 @@
           <button class="file-btn" id="btn-after" type="button">🎨 Фото «После» (раскраска)</button>
           <input type="file" id="photo-after" accept="image/*" style="display:none">
           <button class="btn" id="submit-btn" disabled>Отправить на проверку</button>
+          <button type="button" class="refresh-btn" id="refresh-btn" onclick="manualRefresh()">🔄 Обновить</button>
           <div class="status" id="status"></div>
         </div>
       </div>
@@ -231,6 +255,7 @@
     let premiumUploadTaskId = null;
     let gameFinished = false;
     let seasonTimerInterval = null;
+    let hasPendingSubmission = false;
 
     document.querySelectorAll('.nav-item').forEach(function(item) {
       item.addEventListener('click', function() {
@@ -378,7 +403,53 @@
       if (result.progress && result.progress.premium_unlocked) {
         document.getElementById('nav-premium').style.display = 'flex';
       }
+
+      // Проверяем, есть ли активная заявка
+      hasPendingSubmission = !!result.pending_submission;
+      updateUploadUI();
     }
+
+    function updateUploadUI() {
+      const banner = document.getElementById('pending-banner');
+      const btnBefore = document.getElementById('btn-before');
+      const btnAfter = document.getElementById('btn-after');
+      const submitBtn = document.getElementById('submit-btn');
+
+      if (hasPendingSubmission) {
+        banner.style.display = 'block';
+        btnBefore.disabled = true;
+        btnAfter.disabled = true;
+        submitBtn.disabled = true;
+        btnBefore.textContent = '📷 Фото «До» (контур)';
+        btnAfter.textContent = '🎨 Фото «После» (раскраска)';
+        btnBefore.classList.remove('has-file');
+        btnAfter.classList.remove('has-file');
+      } else {
+        banner.style.display = 'none';
+        btnBefore.disabled = false;
+        btnAfter.disabled = false;
+        submitBtn.disabled = !(fileBefore && fileAfter);
+      }
+    }
+
+    window.manualRefresh = async function() {
+      const status = document.getElementById('status');
+      status.className = 'status loading';
+      status.textContent = '🔄 Обновляем...';
+      try {
+        await loadProgress();
+        await loadAwards();
+        status.className = 'status success';
+        status.textContent = '✅ Обновлено';
+        setTimeout(function() {
+          status.className = 'status';
+          status.textContent = '';
+        }, 1500);
+      } catch (err) {
+        status.className = 'status error';
+        status.textContent = '❌ Ошибка: ' + err.message;
+      }
+    };
 
     async function loadAwards() {
       const grid = document.getElementById('awards-grid');
@@ -417,12 +488,12 @@
 
     document.getElementById('btn-before').addEventListener('click', function(e) {
       e.preventDefault();
-      if (gameFinished) return;
+      if (gameFinished || hasPendingSubmission) return;
       document.getElementById('photo-before').click();
     });
     document.getElementById('btn-after').addEventListener('click', function(e) {
       e.preventDefault();
-      if (gameFinished) return;
+      if (gameFinished || hasPendingSubmission) return;
       document.getElementById('photo-after').click();
     });
 
@@ -441,6 +512,7 @@
       checkReady();
     });
     function checkReady() {
+      if (hasPendingSubmission) return;
       document.getElementById('submit-btn').disabled = !(fileBefore && fileAfter);
     }
 
@@ -455,6 +527,7 @@
 
     document.getElementById('submit-btn').addEventListener('click', async function() {
       if (gameFinished) { alert('Игра окончена'); return; }
+      if (hasPendingSubmission) { alert('Твоя работа уже на проверке'); return; }
       const status = document.getElementById('status');
       const btn = document.getElementById('submit-btn');
       if (!fileBefore || !fileAfter) return;
@@ -478,10 +551,8 @@
         status.className = 'status success';
         status.textContent = '✅ Работа отправлена! Жди проверки.';
         fileBefore = null; fileAfter = null;
-        document.getElementById('btn-before').textContent = '📷 Фото «До» (контур)';
-        document.getElementById('btn-before').classList.remove('has-file');
-        document.getElementById('btn-after').textContent = '🎨 Фото «После» (раскраска)';
-        document.getElementById('btn-after').classList.remove('has-file');
+        hasPendingSubmission = true;
+        updateUploadUI();
       } catch (err) {
         status.className = 'status error';
         status.textContent = '❌ ' + err.message;
