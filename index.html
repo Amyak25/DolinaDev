@@ -136,7 +136,7 @@
 
   <script>
     const SUPABASE_URL = 'https://fmvodfnonmdjzfjkagvo.supabase.co';
-    const SUPABASE_KEY = 'ВСТАВЬ_СЮДА_СВОЙ_PUBLISHABLE_KEY';
+    const SUPABASE_KEY = 'sb_publishable_F9CEHRMsxKkTK1_Sfr9rQQ_9ZKXIHNH';
 
     const tg = window.Telegram.WebApp;
     tg.ready();
@@ -542,8 +542,8 @@
       content.innerHTML = 'Загрузка...';
 
       if (tab === 'admins') {
-        const result = await api('admin-manage', {
-          body: JSON.stringify({ action: 'list', admin_id: currentUser.telegram_id })
+        const result = await api('admin', {
+          body: JSON.stringify({ action: 'admins_list', admin_id: currentUser.telegram_id })
         });
         if (result.error) {
           content.innerHTML = '<div class="card">Ошибка: ' + result.error + '</div>';
@@ -574,8 +574,14 @@
         return;
       }
 
-      const res = await fetch('/api/admin-submissions?status=' + tab);
-      const data = await res.json();
+      const data = await api('admin', {
+        body: JSON.stringify({
+          action: 'submissions_list',
+          admin_id: currentUser.telegram_id,
+          status: tab
+        })
+      });
+
       if (!data.submissions || data.submissions.length === 0) {
         content.innerHTML = '<div class="card">Пусто</div>';
         return;
@@ -588,7 +594,7 @@
         html += '<div><b>' + nick + '</b> • ' + type + '</div>';
         html += '<div class="sub-photos">';
         html += '<img src="' + s.photo_before_url + '" alt="до">';
-        html += '<img src=" + s.photo_after_url + '" alt="после">';
+        html += '<img src="' + s.photo_after_url + '" alt="после">';
         html += '</div>';
         if (s.status === 'pending') {
           html += '<div class="sub-actions">';
@@ -617,9 +623,9 @@
       const input = document.getElementById('new-admin-id');
       const targetId = parseInt(input.value);
       if (isNaN(targetId)) { alert('Введи Telegram ID'); return; }
-      const result = await api('admin-manage', {
+      const result = await api('admin', {
         body: JSON.stringify({
-          action: 'add',
+          action: 'admins_add',
           admin_id: currentUser.telegram_id,
           target_id: targetId
         })
@@ -631,9 +637,9 @@
 
     window.removeAdmin = async function(targetId) {
       if (!confirm('Точно снять админку?')) return;
-      const result = await api('admin-manage', {
+      const result = await api('admin', {
         body: JSON.stringify({
-          action: 'remove',
+          action: 'admins_remove',
           admin_id: currentUser.telegram_id,
           target_id: targetId
         })
@@ -649,12 +655,14 @@
       const reward = parseInt(input.value);
       if (isNaN(reward)) { alert('Введи число монет'); return; }
       try {
-        const res = await fetch('/api/admin-approve', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ submission_id: id, reward: reward, admin_id: currentUser.telegram_id })
+        const data = await api('admin', {
+          body: JSON.stringify({
+            action: 'approve',
+            submission_id: id,
+            reward: reward,
+            admin_id: currentUser.telegram_id
+          })
         });
-        const data = await res.json();
         if (data.error) { alert('Ошибка сервера: ' + data.error); return; }
         loadAdmin('pending');
       } catch (err) {
@@ -664,12 +672,13 @@
 
     window.rejectSub = async function(id) {
       try {
-        const res = await fetch('/api/admin-reject', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ submission_id: id, admin_id: currentUser.telegram_id })
+        const data = await api('admin', {
+          body: JSON.stringify({
+            action: 'reject',
+            submission_id: id,
+            admin_id: currentUser.telegram_id
+          })
         });
-        const data = await res.json();
         if (data.error) { alert('Ошибка: ' + data.error); return; }
         loadAdmin('pending');
       } catch (err) {
