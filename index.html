@@ -1024,44 +1024,57 @@
         content.innerHTML = '<div class="card">Пусто</div>';
         return;
       }
-      let html = '';
-      data.submissions.forEach(function(s) {
-        const nick = s.nickname ? s.nickname : ('Игрок #' + s.user_id);
-        const type = s.premium_task_id
-          ? 'Премиум-' + (s.premium_order_num || s.premium_task_id)
-          : 'Этап ' + (s.stage_order_num || s.stage_id || '?');
-        const taskDesc = s.premium_task_id ? s.premium_description : s.stage_description;
 
-        html += '<div class="sub-card">';
-        html += '<div><b>' + nick + '</b> • ' + type + '</div>';
-        if (taskDesc) {
-          html += '<div class="sub-task-desc">📝 ' + taskDesc + '</div>';
-        }
-        html += '<div class="sub-photos">';
-        html += '<img src="' + s.photo_before_url + '" alt="до" onclick="event.stopPropagation(); openLightbox(\'' + s.photo_before_url + '\')">';
-        html += '<img src="' + s.photo_after_url + '" alt="после" onclick="event.stopPropagation(); openLightbox(\'' + s.photo_after_url + '\')">';
-        html += '</div>';
-        if (s.status === 'pending') {
-          html += '<div class="sub-actions">';
-          html += '<input type="number" id="reward-' + s.id + '" placeholder="Монет" min="0">';
-          html += '<button type="button" class="action-btn approve" data-action="approve" data-id="' + s.id + '">✅</button>';
-          html += '<button type="button" class="action-btn reject" data-action="reject" data-id="' + s.id + '">❌</button>';
+      let html = '';
+      try {
+        data.submissions.forEach(function(s) {
+          const nick = s.nickname ? s.nickname : ('Игрок #' + s.user_id);
+          const type = s.premium_task_id
+            ? 'Премиум-' + (s.premium_order_num || s.premium_task_id)
+            : 'Этап ' + (s.stage_order_num || s.stage_id || '?');
+          const taskDesc = s.premium_task_id ? s.premium_description : s.stage_description;
+
+          html += '<div class="sub-card">';
+          html += '<div><b>' + nick + '</b> • ' + type + '</div>';
+          if (taskDesc) {
+            html += '<div class="sub-task-desc">📝 ' + taskDesc + '</div>';
+          }
+          html += '<div class="sub-photos">';
+          if (s.photo_before_url) {
+            html += '<img src="' + s.photo_before_url + '" alt="до" onclick="event.stopPropagation(); openLightbox(\'' + s.photo_before_url + '\')">';
+          }
+          if (s.photo_after_url) {
+            html += '<img src="' + s.photo_after_url + '" alt="после" onclick="event.stopPropagation(); openLightbox(\'' + s.photo_after_url + '\')">';
+          }
           html += '</div>';
-        } else {
-          html += '<div>Статус: ' + s.status + ' • Награда: ' + s.reward + '</div>';
-        }
-        html += '</div>';
-      });
+          if (s.status === 'pending') {
+            html += '<div class="sub-actions">';
+            html += '<input type="number" id="reward-' + s.id + '" placeholder="Монет" min="0">';
+            html += '<button type="button" class="action-btn approve" data-action="approve" data-id="' + s.id + '">✅</button>';
+            html += '<button type="button" class="action-btn reject" data-action="reject" data-id="' + s.id + '">❌</button>';
+            html += '</div>';
+          } else {
+            html += '<div>Статус: ' + s.status + ' • Награда: ' + (s.reward || 0) + '</div>';
+          }
+          html += '</div>';
+        });
+      } catch (renderErr) {
+        html = '<div class="card" style="color:#E74C3C;">⚠️ Ошибка отображения: ' + renderErr.message + '<br><br>Попробуй обновить приложение.</div>';
+      }
       content.innerHTML = html;
 
-      document.querySelectorAll('#admin-content button[data-action]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          const action = btn.getAttribute('data-action');
-          const id = parseInt(btn.getAttribute('data-id'));
-          if (action === 'approve') window.approveSub(id);
-          if (action === 'reject') window.rejectSub(id);
+      try {
+        document.querySelectorAll('#admin-content button[data-action]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            const action = btn.getAttribute('data-action');
+            const id = parseInt(btn.getAttribute('data-id'));
+            if (action === 'approve') window.approveSub(id);
+            if (action === 'reject') window.rejectSub(id);
+          });
         });
-      });
+      } catch (attachErr) {
+        console.error('Ошибка привязки обработчиков:', attachErr);
+      }
     }
 
     window.addAdmin = async function() {
