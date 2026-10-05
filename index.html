@@ -10,18 +10,22 @@
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(180deg, #E8F4F8 0%, #F5FAFC 100%); min-height: 100vh; color: #2C3E50; padding-bottom: 80px; }
     .container { padding: 16px; }
-    .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: white; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); margin-bottom: 16px; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: white; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); margin-bottom: 12px; }
     .top-bar .name { font-size: 15px; font-weight: 600; }
     .top-bar .balance { font-size: 18px; font-weight: 800; color: #F39C12; }
+    .timer-bar { display: flex; justify-content: center; align-items: center; padding: 10px 16px; background: linear-gradient(135deg, #F39C12, #E67E22); border-radius: 14px; box-shadow: 0 4px 12px rgba(243,156,18,0.3); margin-bottom: 14px; color: white; font-weight: 700; font-size: 14px; }
+    .timer-bar.finished { background: linear-gradient(135deg, #E74C3C, #C0392B); box-shadow: 0 4px 12px rgba(231,76,60,0.3); }
+    .timer-bar .icon { margin-right: 8px; font-size: 18px; }
     .card { background: white; border-radius: 20px; padding: 20px; margin-bottom: 14px; box-shadow: 0 6px 20px rgba(0,0,0,0.06); }
     .stage-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #3498DB; font-weight: 700; margin-bottom: 6px; }
     .stage-title { font-size: 22px; font-weight: 800; margin-bottom: 10px; }
     .stage-desc { font-size: 14px; line-height: 1.5; color: #34495E; padding: 12px; background: #F8F9FA; border-radius: 12px; border-left: 4px solid #3498DB; }
     .stage-img { width: 100%; height: 180px; background: #ECF0F1; border-radius: 14px; margin-top: 14px; object-fit: cover; }
     .btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #3498DB, #2980B9); color: white; border: none; border-radius: 14px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 12px rgba(52,152,219,0.35); }
-    .btn:disabled { opacity: 0.5; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-green { background: linear-gradient(135deg, #27AE60, #229954); box-shadow: 0 4px 12px rgba(39,174,96,0.35); }
     .file-btn { display: block; width: 100%; padding: 14px; background: #ECF0F1; border: 2px dashed #BDC3C7; border-radius: 12px; text-align: center; font-size: 13px; color: #7F8C8D; cursor: pointer; margin-top: 8px; }
+    .file-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .file-btn.has-file { background: #D5F4E6; border-color: #27AE60; color: #27AE60; font-weight: 600; }
     input[type="file"] { display: none; }
     .nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #E8EBED; display: flex; justify-content: space-around; padding: 8px 0; z-index: 100; box-shadow: 0 -4px 12px rgba(0,0,0,0.05); }
@@ -35,7 +39,7 @@
     .shop-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
     .shop-price { font-size: 12px; color: #F39C12; font-weight: 700; margin-bottom: 8px; }
     .shop-buy { width: 100%; padding: 8px; font-size: 12px; background: #3498DB; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
-    .shop-buy:disabled { background: #BDC3C7; }
+    .shop-buy:disabled { background: #BDC3C7; cursor: not-allowed; }
     .shop-buy.owned { background: #27AE60; }
     .player-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 12px; margin-bottom: 8px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
     .player-row .nick { font-weight: 700; font-size: 14px; }
@@ -78,76 +82,99 @@
     .other-purchases { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .other-purchase-item { padding: 8px 12px; background: #D5F4E6; color: #27AE60; border-radius: 10px; font-size: 13px; font-weight: 700; }
     .other-empty { color: #95A5A6; font-style: italic; font-size: 13px; padding: 8px 0; }
+    .game-over-screen { text-align: center; padding: 60px 20px; }
+    .game-over-icon { font-size: 80px; margin-bottom: 20px; }
+    .game-over-title { font-size: 32px; font-weight: 800; color: #E74C3C; margin-bottom: 12px; }
+    .game-over-text { font-size: 16px; color: #7F8C8D; line-height: 1.6; }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="top-bar">
-      <div class="name" id="nickname">Загрузка...</div>
-      <div class="balance" id="balance">💰 0</div>
-    </div>
-
-    <div class="page active" id="page-city">
-      <div class="card">
-        <div class="stage-label" id="stage-label">Этап 1 из 15</div>
-        <div class="stage-title" id="stage-title">Загрузка...</div>
-        <div class="stage-desc" id="stage-desc">Подождите...</div>
-        <img class="stage-img" id="stage-img" src="" alt="" style="display:none">
+    <div id="game-active-view">
+      <div class="top-bar">
+        <div class="name" id="nickname">Загрузка...</div>
+        <div class="balance" id="balance">💰 0</div>
       </div>
 
-      <div class="card">
-        <div class="section-title" style="margin-top:0;">🏆 Награды</div>
-        <div class="awards-grid" id="awards-grid">Загрузка...</div>
+      <div class="timer-bar" id="timer-bar">
+        <span class="icon">⏰</span>
+        <span id="timer-text">До конца: загрузка...</span>
       </div>
 
-      <div class="card">
-        <div class="stage-label">Загрузить работу</div>
-        <button class="file-btn" id="btn-before" type="button">📷 Фото «До» (контур)</button>
-        <input type="file" id="photo-before" accept="image/*" style="display:none">
-        <button class="file-btn" id="btn-after" type="button">🎨 Фото «После» (раскраска)</button>
-        <input type="file" id="photo-after" accept="image/*" style="display:none">
-        <button class="btn" id="submit-btn" disabled>Отправить на проверку</button>
-        <div class="status" id="status"></div>
+      <div class="page active" id="page-city">
+        <div class="card">
+          <div class="stage-label" id="stage-label">Этап 1 из 15</div>
+          <div class="stage-title" id="stage-title">Загрузка...</div>
+          <div class="stage-desc" id="stage-desc">Подождите...</div>
+          <img class="stage-img" id="stage-img" src="" alt="" style="display:none">
+        </div>
+
+        <div class="card">
+          <div class="section-title" style="margin-top:0;">🏆 Награды</div>
+          <div class="awards-grid" id="awards-grid">Загрузка...</div>
+        </div>
+
+        <div class="card">
+          <div class="stage-label">Загрузить работу</div>
+          <button class="file-btn" id="btn-before" type="button">📷 Фото «До» (контур)</button>
+          <input type="file" id="photo-before" accept="image/*" style="display:none">
+          <button class="file-btn" id="btn-after" type="button">🎨 Фото «После» (раскраска)</button>
+          <input type="file" id="photo-after" accept="image/*" style="display:none">
+          <button class="btn" id="submit-btn" disabled>Отправить на проверку</button>
+          <div class="status" id="status"></div>
+        </div>
+      </div>
+
+      <div class="page" id="page-shop">
+        <div class="section-title">🛒 Магазин улучшений</div>
+        <div class="shop-grid" id="shop-grid">Загрузка...</div>
+      </div>
+
+      <div class="page" id="page-premium">
+        <div class="section-title">⭐ Премиум-задания</div>
+        <div id="premium-content">Загрузка...</div>
+      </div>
+
+      <div class="page" id="page-players">
+        <div class="section-title">👥 Игроки</div>
+        <div id="players-list">Загрузка...</div>
+      </div>
+
+      <div class="page" id="page-other-player">
+        <button type="button" class="btn back-btn" onclick="backToPlayers()">← Назад к игрокам</button>
+        <div id="other-player-content">Загрузка...</div>
+      </div>
+
+      <div class="page" id="page-admin">
+        <div class="section-title">⚙️ Админ-панель</div>
+        <div class="admin-tabs">
+          <div class="admin-tab active" data-tab="pending">Очередь</div>
+          <div class="admin-tab" data-tab="history">История</div>
+          <div class="admin-tab" data-tab="admins">Админы</div>
+        </div>
+        <div id="admin-content">Загрузка...</div>
+      </div>
+
+      <div class="nav">
+        <div class="nav-item active" data-page="city"><div class="icon">🏠</div><div>Город</div></div>
+        <div class="nav-item" data-page="shop"><div class="icon">🛒</div><div>Магазин</div></div>
+        <div class="nav-item" data-page="premium" id="nav-premium" style="display:none"><div class="icon">⭐</div><div>Премиум</div></div>
+        <div class="nav-item" data-page="players"><div class="icon">👥</div><div>Игроки</div></div>
+        <div class="nav-item" data-page="admin" id="nav-admin" style="display:none"><div class="icon">⚙️</div><div>Админ</div></div>
       </div>
     </div>
 
-    <div class="page" id="page-shop">
-      <div class="section-title">🛒 Магазин улучшений</div>
-      <div class="shop-grid" id="shop-grid">Загрузка...</div>
-    </div>
-
-    <div class="page" id="page-premium">
-      <div class="section-title">⭐ Премиум-задания</div>
-      <div id="premium-content">Загрузка...</div>
-    </div>
-
-    <div class="page" id="page-players">
-      <div class="section-title">👥 Игроки</div>
-      <div id="players-list">Загрузка...</div>
-    </div>
-
-    <div class="page" id="page-other-player">
-      <button type="button" class="btn back-btn" onclick="backToPlayers()">← Назад к игрокам</button>
-      <div id="other-player-content">Загрузка...</div>
-    </div>
-
-    <div class="page" id="page-admin">
-      <div class="section-title">⚙️ Админ-панель</div>
-      <div class="admin-tabs">
-        <div class="admin-tab active" data-tab="pending">Очередь</div>
-        <div class="admin-tab" data-tab="history">История</div>
-        <div class="admin-tab" data-tab="admins">Админы</div>
+    <div id="game-over-view" style="display:none;">
+      <div class="card game-over-screen">
+        <div class="game-over-icon">🎮</div>
+        <div class="game-over-title">Игра окончена</div>
+        <div class="game-over-text">
+          Спасибо за участие в игре «Долина Дев»!<br><br>
+          Игра завершена 30 ноября 2026 года.<br>
+          Спасибо всем, кто строил свою деревню! 🌳
+        </div>
       </div>
-      <div id="admin-content">Загрузка...</div>
     </div>
-  </div>
-
-  <div class="nav">
-    <div class="nav-item active" data-page="city"><div class="icon">🏠</div><div>Город</div></div>
-    <div class="nav-item" data-page="shop"><div class="icon">🛒</div><div>Магазин</div></div>
-    <div class="nav-item" data-page="premium" id="nav-premium" style="display:none"><div class="icon">⭐</div><div>Премиум</div></div>
-    <div class="nav-item" data-page="players"><div class="icon">👥</div><div>Игроки</div></div>
-    <div class="nav-item" data-page="admin" id="nav-admin" style="display:none"><div class="icon">⚙️</div><div>Админ</div></div>
   </div>
 
   <script>
@@ -165,9 +192,12 @@
     let fileBefore = null;
     let fileAfter = null;
     let premiumUploadTaskId = null;
+    let gameFinished = false;
+    let seasonTimerInterval = null;
 
     document.querySelectorAll('.nav-item').forEach(function(item) {
       item.addEventListener('click', function() {
+        if (gameFinished) return;
         const page = item.dataset.page;
         document.querySelectorAll('.nav-item').forEach(function(i) { i.classList.remove('active'); });
         document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
@@ -193,7 +223,62 @@
       return res.json();
     }
 
+    // === ДЕДЛАЙН ===
+    async function loadSeason() {
+      const result = await apiGet('get-season');
+
+      if (result.is_finished) {
+        gameFinished = true;
+        document.getElementById('game-active-view').style.display = 'none';
+        document.getElementById('game-over-view').style.display = 'block';
+        return;
+      }
+
+      if (result.seconds_left !== null && result.seconds_left !== undefined) {
+        startTimer(result.seconds_left);
+      }
+    }
+
+    function startTimer(secondsLeft) {
+      const timerText = document.getElementById('timer-text');
+      const timerBar = document.getElementById('timer-bar');
+
+      let remaining = secondsLeft;
+
+      function update() {
+        if (remaining <= 0) {
+          clearInterval(seasonTimerInterval);
+          timerBar.classList.add('finished');
+          timerText.textContent = 'Игра окончена';
+          gameFinished = true;
+          document.getElementById('game-active-view').style.display = 'none';
+          document.getElementById('game-over-view').style.display = 'block';
+          return;
+        }
+
+        const days = Math.floor(remaining / 86400);
+        const hours = Math.floor((remaining % 86400) / 3600);
+        const minutes = Math.floor((remaining % 3600) / 60);
+
+        let text = 'До конца: ';
+        if (days > 0) text += days + ' д ' + hours + ' ч';
+        else if (hours > 0) text += hours + ' ч ' + minutes + ' мин';
+        else text += minutes + ' мин';
+
+        timerText.textContent = text;
+        remaining -= 60; // обновляем раз в минуту
+      }
+
+      update();
+      seasonTimerInterval = setInterval(update, 60000);
+    }
+
     async function init() {
+      // Сначала проверяем дедлайн
+      await loadSeason();
+
+      if (gameFinished) return;
+
       const user = tg.initDataUnsafe && tg.initDataUnsafe.user;
       if (!user) {
         document.getElementById('nickname').textContent = 'Открой через Telegram';
@@ -280,10 +365,12 @@
 
     document.getElementById('btn-before').addEventListener('click', function(e) {
       e.preventDefault();
+      if (gameFinished) return;
       document.getElementById('photo-before').click();
     });
     document.getElementById('btn-after').addEventListener('click', function(e) {
       e.preventDefault();
+      if (gameFinished) return;
       document.getElementById('photo-after').click();
     });
 
@@ -315,6 +402,7 @@
     }
 
     document.getElementById('submit-btn').addEventListener('click', async function() {
+      if (gameFinished) { alert('Игра окончена'); return; }
       const status = document.getElementById('status');
       const btn = document.getElementById('submit-btn');
       if (!fileBefore || !fileAfter) return;
@@ -370,7 +458,7 @@
       let html = '';
       result.items.forEach(function(item) {
         const isOwned = owned.indexOf(item.id) !== -1;
-        const canBuy = currentUser.balance >= item.price && !isOwned;
+        const canBuy = currentUser.balance >= item.price && !isOwned && !gameFinished;
         html += '<div class="shop-card">';
         html += '<div class="shop-name">' + item.name + '</div>';
         html += '<div class="shop-price">💰 ' + item.price + '</div>';
@@ -382,6 +470,7 @@
     }
 
     window.buyItem = async function(id) {
+      if (gameFinished) { alert('Игра окончена'); return; }
       const result = await api('buy-item', {
         body: JSON.stringify({ telegram_id: currentUser.telegram_id, shop_item_id: id })
       });
@@ -478,6 +567,7 @@
         });
 
         document.getElementById('p-submit-btn').addEventListener('click', async function() {
+          if (gameFinished) { alert('Игра окончена'); return; }
           const status = document.getElementById('p-status');
           const btn = document.getElementById('p-submit-btn');
           if (!pFileBefore || !pFileAfter || !premiumUploadTaskId) return;
@@ -519,6 +609,7 @@
     }
 
     window.openPremiumUpload = function(taskId) {
+      if (gameFinished) { alert('Игра окончена'); return; }
       premiumUploadTaskId = taskId;
       document.getElementById('premium-upload-block').style.display = 'block';
     };
