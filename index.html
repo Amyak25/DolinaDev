@@ -648,4 +648,640 @@
         body: JSON.stringify({ telegram_id: currentUser.telegram_id })
       });
       if (result.error) {
-        document.getElementById('
+        document.getElementById('stage-title').textContent = 'Ошибка';
+        document.getElementById('stage-desc').textContent = result.error;
+        return;
+      }
+      currentProgress = result;
+      const stage = result.stage;
+      if (stage) {
+        document.getElementById('stage-label').textContent = 'Этап ' + stage.order_num + ' из 15';
+        document.getElementById('stage-title').textContent = stage.name;
+        document.getElementById('stage-desc').textContent = stage.description;
+        if (stage.building_image_url) {
+          const img = document.getElementById('stage-img');
+          img.src = stage.building_image_url;
+          img.style.display = 'block';
+        }
+      } else {
+        document.getElementById('stage-title').textContent = '🎉 Все этапы пройдены!';
+        document.getElementById('stage-desc').textContent = 'Тебе открыты премиум-задания.';
+      }
+      document.getElementById('balance').textContent = '💰 ' + result.user.balance;
+
+      if (result.progress && result.progress.premium_unlocked) {
+        document.getElementById('nav-premium').style.display = 'flex';
+      }
+
+      hasPendingSubmission = !!result.pending_submission;
+      updateUploadUI();
+    }
+
+    function updateUploadUI() {
+      const banner = document.getElementById('pending-banner');
+      const btnBefore = document.getElementById('btn-before');
+      const btnAfter = document.getElementById('btn-after');
+      const submitBtn = document.getElementById('submit-btn');
+
+      if (hasPendingSubmission) {
+        banner.style.display = 'block';
+        btnBefore.disabled = true;
+        btnAfter.disabled = true;
+        submitBtn.disabled = true;
+        btnBefore.textContent = '📷 Фото «До» (контур)';
+        btnAfter.textContent = '🎨 Фото «После» (раскраска)';
+        btnBefore.classList.remove('has-file');
+        btnAfter.classList.remove('has-file');
+      } else {
+        banner.style.display = 'none';
+        btnBefore.disabled = false;
+        btnAfter.disabled = false;
+        submitBtn.disabled = !(fileBefore && fileAfter);
+      }
+    }
+
+    window.manualRefresh = async function() {
+      const status = document.getElementById('status');
+      status.className = 'status loading';
+      status.textContent = '🔄 Обновляем...';
+      try {
+        await loadProgress();
+        await loadAwards();
+        status.className = 'status success';
+        status.textContent = '✅ Обновлено';
+        setTimeout(function() {
+          status.className = 'status';
+          status.textContent = '';
+        }, 1500);
+      } catch (err) {
+        status.className = 'status error';
+        status.textContent = '❌ Ошибка: ' + err.message;
+      }
+    };
+
+    async function loadAwards() {
+      const grid = document.getElementById('awards-grid');
+      const result = await api('get-awards', {
+        body: JSON.stringify({ telegram_id: currentUser.telegram_id })
+      });
+
+      if (result.error || !result.awards) {
+        grid.innerHTML = '<div style="font-size:12px; color:#7F8C8D;">Ошибка загрузки наград</div>';
+        return;
+      }
+
+      let html = '';
+      result.awards.forEach(function(a) {
+        const lockedClass = a.unlocked ? '' : 'locked';
+        const cardClass = a.unlocked ? 'award-card award-unlocked' : 'award-card';
+
+        let condText = '';
+        if (a.max_purchases === null) {
+          condText = a.min_purchases + '+ улучшений';
+        } else if (a.min_purchases === a.max_purchases) {
+          condText = a.min_purchases + ' улучшений';
+        } else {
+          condText = a.min_purchases + '–' + a.max_purchases + ' улучшений';
+        }
+
+        html += '<div class="' + cardClass + '">';
+        html += '<img class="award-img ' + lockedClass + '" src="' + a.image_url + '" alt="' + a.name + '" loading="lazy">';
+        html += '<div class="award-name">' + a.name + '</div>';
+        html += '<div class="award-cond">' + condText + '</div>';
+        html += '</div>';
+      });
+
+      grid.innerHTML = html;
+    }
+
+    document.getElementById('btn-before').addEventListener('click', function(e) {
+      e.preventDefault();
+      if (gameFinished || hasPendingSubmission) return;
+      document.getElementById('photo-before').click();
+    });
+    document.getElementById('btn-after').addEventListener('click', function(e) {
+      e.preventDefault();
+      if (gameFinished || hasPendingSubmission) return;
+      document.getElementById('photo-after').click();
+    });
+
+    document.getElementById('photo-before').addEventListener('change', function(e) {
+      fileBefore = e.target.files[0];
+      const btn = document.getElementById('btn-before');
+      btn.textContent = '✅ ' + fileBefore.name.slice(0, 30);
+      btn.classList.add('has-file');
+      checkReady();
+    });
+    document.getElementById('photo-after').addEventListener('change', function(e) {
+      fileAfter = e.target.files[0];
+      const btn = document.getElementById('btn-after');
+      btn.textContent = '✅ ' + fileAfter.name.slice(0, 30);
+      btn.classList.add('has-file');
+      checkReady();
+    });
+    function checkReady() {
+      if (hasPendingSubmission) return;
+      document.getElementById('submit-btn').disabled = !(fileBefore && fileAfter);
+    }
+
+    async function uploadPhoto(file, prefix) {
+      const ext = file.name.split('.').pop();
+      const fileName = currentUser.telegram_id + '/' + prefix + '-' + Date.now() + '.' + ext;
+      const result = await sb.storage.from('photos').upload(fileName, file, { upsert: false });
+      if (result.error) throw result.error;
+      const urlData = sb.storage.from('photos').getPublicUrl(fileName);
+      return urlData.data.publicUrl;
+    }
+
+    document.getElementById('submit-btn').addEventListener('click', async function() {
+      if (gameFinished) { alert('Игра окончена'); return; }
+      if (hasPendingSubmission) { alert('Твоя работа уже на проверке'); return; }
+      const status = document.getElementById('status');
+      const btn = document.getElementById('submit-btn');
+      if (!fileBefore || !fileAfter) return;
+      btn.disabled = true;
+      status.className = 'status loading';
+      status.textContent = '⏳ Загружаем фото...';
+      try {
+        const urlBefore = await uploadPhoto(fileBefore, 'before');
+        const urlAfter = await uploadPhoto(fileAfter, 'after');
+        status.textContent = '⏳ Отправляем на проверку...';
+        const stage = currentProgress.stage;
+        const result = await api('upload-submission', {
+          body: JSON.stringify({
+            telegram_id: currentUser.telegram_id,
+            stage_id: stage ? stage.id : null,
+            photo_before_url: urlBefore,
+            photo_after_url: urlAfter
+          })
+        });
+        if (result.error) throw new Error(result.error);
+        status.className = 'status success';
+        status.textContent = '✅ Работа отправлена! Жди проверки.';
+        fileBefore = null; fileAfter = null;
+        hasPendingSubmission = true;
+        updateUploadUI();
+      } catch (err) {
+        status.className = 'status error';
+        status.textContent = '❌ ' + err.message;
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    async function loadShop() {
+      const grid = document.getElementById('shop-grid');
+
+      const unlocked = currentProgress && currentProgress.progress && currentProgress.progress.premium_unlocked;
+      if (!unlocked) {
+        const stageNum = (currentProgress && currentProgress.stage) ? currentProgress.stage.order_num : 1;
+        grid.innerHTML = '<div class="card locked-msg">🔒 Магазин откроется после прохождения всех 15 этапов.<br><br>Сейчас ты на <b>Этапе ' + stageNum + '</b>.</div>';
+        return;
+      }
+
+      const result = await apiGet('get-shop');
+      if (result.error || !result.items) {
+        grid.innerHTML = '<div class="card">Ошибка загрузки магазина</div>';
+        return;
+      }
+      const purchases = (currentProgress && currentProgress.purchases) ? currentProgress.purchases : [];
+      const owned = purchases.map(function(p) { return p.id; });
+      let html = '';
+      result.items.forEach(function(item) {
+        const isOwned = owned.indexOf(item.id) !== -1;
+        const canBuy = currentUser.balance >= item.price && !isOwned && !gameFinished;
+        html += '<div class="shop-card">';
+        html += '<div class="shop-name">' + item.name + '</div>';
+        html += '<div class="shop-price">💰 ' + item.price + '</div>';
+        html += '<button type="button" class="shop-buy ' + (isOwned ? 'owned' : '') + '" ' + (canBuy ? '' : 'disabled') + ' onclick="buyItem(' + item.id + ')">';
+        html += isOwned ? '✅ Куплено' : 'Купить';
+        html += '</button></div>';
+      });
+      grid.innerHTML = html;
+    }
+
+    window.buyItem = async function(id) {
+      if (gameFinished) { alert('Игра окончена'); return; }
+      const result = await api('buy-item', {
+        body: JSON.stringify({ telegram_id: currentUser.telegram_id, shop_item_id: id })
+      });
+      if (result.error) { alert(result.error); return; }
+      currentUser.balance = result.new_balance;
+      document.getElementById('balance').textContent = '💰 ' + result.new_balance;
+      await loadProgress();
+      await loadAwards();
+      await loadShop();
+    };
+
+    async function loadPremium() {
+      const content = document.getElementById('premium-content');
+      content.innerHTML = 'Загрузка...';
+
+      const result = await api('get-premium', {
+        body: JSON.stringify({ telegram_id: currentUser.telegram_id })
+      });
+
+      if (result.error) {
+        content.innerHTML = '<div class="card">Ошибка: ' + result.error + '</div>';
+        return;
+      }
+
+      if (!result.unlocked) {
+        content.innerHTML = '<div class="card locked-msg">🔒 Премиум-задания откроются после прохождения всех 15 этапов.</div>';
+        return;
+      }
+
+      const completed = result.completed || [];
+      let html = '';
+
+      result.tasks.forEach(function(task) {
+        const isDone = completed.indexOf(task.id) !== -1;
+        html += '<div class="card">';
+        html += '<div class="premium-badge">⭐ Премиум-' + task.order_num + '</div>';
+        html += '<div class="stage-title">' + task.name + '</div>';
+        html += '<div class="stage-desc">' + task.description + '</div>';
+
+        if (isDone) {
+          html += '<div class="completed-badge">✅ Выполнено</div>';
+        } else {
+          html += '<button type="button" class="btn btn-green" onclick="openPremiumUpload(' + task.id + ')">📤 Загрузить работу</button>';
+        }
+        html += '</div>';
+      });
+
+      content.innerHTML = html;
+
+      if (!document.getElementById('premium-upload-block')) {
+        const block = document.createElement('div');
+        block.id = 'premium-upload-block';
+        block.style.display = 'none';
+        block.innerHTML =
+          '<div class="card" style="position:fixed; bottom:90px; left:16px; right:16px; z-index:200; box-shadow: 0 8px 30px rgba(0,0,0,0.2); background: rgba(255,255,255,0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);">' +
+            '<div style="font-weight:800; margin-bottom:10px;">Загрузить работу</div>' +
+            '<button type="button" class="file-btn" id="p-btn-before">📷 Фото «До» (контур)</button>' +
+            '<input type="file" id="p-photo-before" accept="image/*" style="display:none">' +
+            '<button type="button" class="file-btn" id="p-btn-after">🎨 Фото «После» (раскраска)</button>' +
+            '<input type="file" id="p-photo-after" accept="image/*" style="display:none">' +
+            '<button type="button" class="btn btn-green" id="p-submit-btn" disabled>Отправить</button>' +
+            '<button type="button" class="btn" style="background:#BDC3C7; box-shadow:none;" id="p-cancel-btn">Отмена</button>' +
+            '<div class="status" id="p-status"></div>' +
+          '</div>';
+        document.body.appendChild(block);
+
+        document.getElementById('p-btn-before').addEventListener('click', function() {
+          document.getElementById('p-photo-before').click();
+        });
+        document.getElementById('p-btn-after').addEventListener('click', function() {
+          document.getElementById('p-photo-after').click();
+        });
+        document.getElementById('p-cancel-btn').addEventListener('click', function() {
+          document.getElementById('premium-upload-block').style.display = 'none';
+          premiumUploadTaskId = null;
+        });
+
+        let pFileBefore = null;
+        let pFileAfter = null;
+
+        document.getElementById('p-photo-before').addEventListener('change', function(e) {
+          pFileBefore = e.target.files[0];
+          const btn = document.getElementById('p-btn-before');
+          btn.textContent = '✅ ' + pFileBefore.name.slice(0, 30);
+          btn.classList.add('has-file');
+          document.getElementById('p-submit-btn').disabled = !(pFileBefore && pFileAfter);
+        });
+        document.getElementById('p-photo-after').addEventListener('change', function(e) {
+          pFileAfter = e.target.files[0];
+          const btn = document.getElementById('p-btn-after');
+          btn.textContent = '✅ ' + pFileAfter.name.slice(0, 30);
+          btn.classList.add('has-file');
+          document.getElementById('p-submit-btn').disabled = !(pFileBefore && pFileAfter);
+        });
+
+        document.getElementById('p-submit-btn').addEventListener('click', async function() {
+          if (gameFinished) { alert('Игра окончена'); return; }
+          const status = document.getElementById('p-status');
+          const btn = document.getElementById('p-submit-btn');
+          if (!pFileBefore || !pFileAfter || !premiumUploadTaskId) return;
+          btn.disabled = true;
+          status.className = 'status loading';
+          status.textContent = '⏳ Загружаем фото...';
+          try {
+            const urlBefore = await uploadPhoto(pFileBefore, 'premium-before');
+            const urlAfter = await uploadPhoto(pFileAfter, 'premium-after');
+            status.textContent = '⏳ Отправляем на проверку...';
+            const result = await api('upload-submission', {
+              body: JSON.stringify({
+                telegram_id: currentUser.telegram_id,
+                premium_task_id: premiumUploadTaskId,
+                photo_before_url: urlBefore,
+                photo_after_url: urlAfter
+              })
+            });
+            if (result.error) throw new Error(result.error);
+            status.className = 'status success';
+            status.textContent = '✅ Работа отправлена!';
+            pFileBefore = null; pFileAfter = null;
+            document.getElementById('p-btn-before').textContent = '📷 Фото «До» (контур)';
+            document.getElementById('p-btn-before').classList.remove('has-file');
+            document.getElementById('p-btn-after').textContent = '🎨 Фото «После» (раскраска)';
+            document.getElementById('p-btn-after').classList.remove('has-file');
+            document.getElementById('p-submit-btn').disabled = true;
+            setTimeout(function() {
+              document.getElementById('premium-upload-block').style.display = 'none';
+            }, 1500);
+          } catch (err) {
+            status.className = 'status error';
+            status.textContent = '❌ ' + err.message;
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      }
+    }
+
+    window.openPremiumUpload = function(taskId) {
+      if (gameFinished) { alert('Игра окончена'); return; }
+      premiumUploadTaskId = taskId;
+      document.getElementById('premium-upload-block').style.display = 'block';
+    };
+
+    async function loadPlayers() {
+      const list = document.getElementById('players-list');
+      const title = document.getElementById('players-title');
+      const result = await apiGet('get-players');
+
+      const players = result.players || [];
+
+      title.textContent = '👥 Игроки (' + players.length + ')';
+
+      if (players.length === 0) {
+        list.innerHTML = '<div class="card">Пока нет других игроков</div>';
+        return;
+      }
+
+      let html = '';
+      players.forEach(function(p) {
+        html += '<div class="player-row" onclick="showPlayer(' + p.telegram_id + ')">';
+        html += '<div><div class="nick">' + p.nickname + '</div>';
+        html += '<div class="lvl">Этап ' + p.current_stage + '</div></div>';
+        html += '<div class="bal">💰 ' + p.balance + '</div>';
+        html += '</div>';
+      });
+      list.innerHTML = html;
+    }
+
+    window.showPlayer = async function(id) {
+      const content = document.getElementById('other-player-content');
+      content.innerHTML = '<div style="text-align:center; padding:30px; color:#95A5A6;">Загрузка...</div>';
+
+      document.querySelectorAll('.nav-item').forEach(function(i) { i.classList.remove('active'); });
+      document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+      document.getElementById('page-other-player').classList.add('active');
+
+      const result = await apiGet('get-player?telegram_id=' + id);
+      if (result.error) {
+        content.innerHTML = '<div class="card">Ошибка: ' + result.error + '</div>';
+        return;
+      }
+
+      const u = result.user;
+      const stage = result.stage;
+      const purchases = result.purchases || [];
+
+      let html = '';
+
+      html += '<div class="other-header">';
+      html += '<div class="other-header-left">';
+      html += '<div class="other-nick">👤 ' + u.nickname + '</div>';
+      html += '<div class="other-stage-line">🏠 Этап ' + u.current_stage + ' из 15</div>';
+      html += '</div>';
+      html += '<div class="other-bal">💰 ' + u.balance + '</div>';
+      html += '</div>';
+
+      if (stage) {
+        html += '<div class="other-stage-card">';
+        html += '<div class="stage-label">Этап ' + stage.order_num + '</div>';
+        html += '<div class="stage-title">' + stage.name + '</div>';
+        if (stage.building_image_url) {
+          html += '<img class="other-stage-img" src="' + stage.building_image_url + '" alt="' + stage.name + '" loading="lazy">';
+        }
+        html += '</div>';
+      }
+
+      html += '<div class="other-stage-card">';
+      html += '<div class="section-title" style="margin-top:0;">🛒 Улучшения (' + purchases.length + ')</div>';
+      if (purchases.length === 0) {
+        html += '<div class="other-empty">Пока ничего не куплено</div>';
+      } else {
+        html += '<div class="other-purchases">';
+        purchases.forEach(function(p) {
+          html += '<div class="other-purchase-item">✅ ' + p.name + '</div>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+
+      content.innerHTML = html;
+    };
+
+    window.backToPlayers = function() {
+      document.querySelectorAll('.nav-item').forEach(function(i) { i.classList.remove('active'); });
+      document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+      document.querySelector('.nav-item[data-page="players"]').classList.add('active');
+      document.getElementById('page-players').classList.add('active');
+      loadPlayers();
+    };
+
+    document.querySelectorAll('.admin-tab').forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
+        tab.classList.add('active');
+        loadAdmin(tab.dataset.tab);
+      });
+    });
+
+    async function loadAdmin(tab) {
+      tab = tab || 'pending';
+      const content = document.getElementById('admin-content');
+      content.innerHTML = 'Загрузка...';
+
+      if (tab === 'admins') {
+        const result = await api('admin', {
+          body: JSON.stringify({ action: 'admins_list', admin_id: currentUser.telegram_id })
+        });
+        if (result.error) {
+          content.innerHTML = '<div class="card">Ошибка: ' + result.error + '</div>';
+          return;
+        }
+        let html = '<div class="card">';
+        html += '<div style="font-weight:800; margin-bottom:10px;">Добавить админа</div>';
+        html += '<div class="sub-actions">';
+        html += '<input type="number" id="new-admin-id" placeholder="Telegram ID" min="1">';
+        html += '<button type="button" class="action-btn approve" onclick="addAdmin()">➕</button>';
+        html += '</div>';
+        html += '<div style="font-size:12px; color:#7F8C8D; margin-top:8px;">Игрок должен сначала зайти в игру, чтобы его ID появился в базе.</div>';
+        html += '</div>';
+
+        html += '<div class="section-title">Текущие админы</div>';
+        result.admins.forEach(function(a) {
+          const isMe = a.telegram_id === currentUser.telegram_id;
+          html += '<div class="player-row">';
+          html += '<div><div class="nick">' + a.nickname + (isMe ? ' (ты)' : '') + '</div>';
+          html += '<div class="lvl">ID: ' + a.telegram_id + '</div></div>';
+          if (!isMe) {
+            html += '<button type="button" class="action-btn reject" onclick="removeAdmin(' + a.telegram_id + ')">🗑️</button>';
+          }
+          html += '</div>';
+        });
+
+        content.innerHTML = html;
+        return;
+      }
+
+      const data = await api('admin', {
+        body: JSON.stringify({
+          action: 'submissions_list',
+          admin_id: currentUser.telegram_id,
+          status: tab
+        })
+      });
+
+      if (!data.submissions || data.submissions.length === 0) {
+        content.innerHTML = '<div class="card">Пусто</div>';
+        return;
+      }
+
+      let html = '';
+      try {
+        data.submissions.forEach(function(s) {
+          const nick = s.nickname ? s.nickname : ('Игрок #' + s.user_id);
+          const type = s.premium_task_id
+            ? 'Премиум-' + (s.premium_order_num || s.premium_task_id)
+            : 'Этап ' + (s.stage_order_num || s.stage_id || '?');
+          const taskDesc = s.premium_task_id ? s.premium_description : s.stage_description;
+
+          html += '<div class="sub-card">';
+          html += '<div><b>' + nick + '</b> • ' + type + '</div>';
+          if (taskDesc) {
+            html += '<div class="sub-task-desc">📝 ' + taskDesc + '</div>';
+          }
+          html += '<div class="sub-photos">';
+
+          if (s.photo_before_url && s.photo_before_url.length > 5) {
+            html += '<img src="' + s.photo_before_url + '" alt="до" loading="lazy" ' +
+              'onerror="this.onerror=null; this.style.display=\'none\'; this.parentNode.insertAdjacentHTML(\'afterbegin\', \'<div class=&quot;photo-placeholder&quot;>❌ Фото удалено</div>\');" ' +
+              'onclick="event.stopPropagation(); openLightbox(\'' + s.photo_before_url + '\')">';
+          } else {
+            html += '<div class="photo-placeholder">Нет фото</div>';
+          }
+
+          if (s.photo_after_url && s.photo_after_url.length > 5) {
+            html += '<img src="' + s.photo_after_url + '" alt="после" loading="lazy" ' +
+              'onerror="this.onerror=null; this.style.display=\'none\'; this.parentNode.insertAdjacentHTML(\'afterbegin\', \'<div class=&quot;photo-placeholder&quot;>❌ Фото удалено</div>\');" ' +
+              'onclick="event.stopPropagation(); openLightbox(\'' + s.photo_after_url + '\')">';
+          } else {
+            html += '<div class="photo-placeholder">Нет фото</div>';
+          }
+
+          html += '</div>';
+          if (s.status === 'pending') {
+            html += '<div class="sub-actions">';
+            html += '<input type="number" id="reward-' + s.id + '" placeholder="Монет" min="0">';
+            html += '<button type="button" class="action-btn approve" data-action="approve" data-id="' + s.id + '">✅</button>';
+            html += '<button type="button" class="action-btn reject" data-action="reject" data-id="' + s.id + '">❌</button>';
+            html += '</div>';
+          } else {
+            html += '<div>Статус: ' + s.status + ' • Награда: ' + (s.reward || 0) + '</div>';
+          }
+          html += '</div>';
+        });
+      } catch (renderErr) {
+        html = '<div class="card" style="color:#E74C3C;">⚠️ Ошибка отображения: ' + renderErr.message + '<br><br>Попробуй обновить приложение.</div>';
+      }
+      content.innerHTML = html;
+
+      try {
+        document.querySelectorAll('#admin-content button[data-action]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            const action = btn.getAttribute('data-action');
+            const id = parseInt(btn.getAttribute('data-id'));
+            if (action === 'approve') window.approveSub(id);
+            if (action === 'reject') window.rejectSub(id);
+          });
+        });
+      } catch (attachErr) {
+        console.error('Ошибка привязки обработчиков:', attachErr);
+      }
+    }
+
+    window.addAdmin = async function() {
+      const input = document.getElementById('new-admin-id');
+      const targetId = parseInt(input.value);
+      if (isNaN(targetId)) { alert('Введи Telegram ID'); return; }
+      const result = await api('admin', {
+        body: JSON.stringify({
+          action: 'admins_add',
+          admin_id: currentUser.telegram_id,
+          target_id: targetId
+        })
+      });
+      if (result.error) { alert(result.error); return; }
+      alert('✅ ' + result.nickname + ' теперь админ!');
+      loadAdmin('admins');
+    };
+
+    window.removeAdmin = async function(targetId) {
+      if (!confirm('Точно снять админку?')) return;
+      const result = await api('admin', {
+        body: JSON.stringify({
+          action: 'admins_remove',
+          admin_id: currentUser.telegram_id,
+          target_id: targetId
+        })
+      });
+      if (result.error) { alert(result.error); return; }
+      alert('✅ Админка снята');
+      loadAdmin('admins');
+    };
+
+    window.approveSub = async function(id) {
+      const input = document.getElementById('reward-' + id);
+      if (!input) { alert('Поле ввода не найдено'); return; }
+      const reward = parseInt(input.value);
+      if (isNaN(reward)) { alert('Введи число монет'); return; }
+      try {
+        const data = await api('admin', {
+          body: JSON.stringify({
+            action: 'approve',
+            submission_id: id,
+            reward: reward,
+            admin_id: currentUser.telegram_id
+          })
+        });
+        if (data.error) { alert('Ошибка сервера: ' + data.error); return; }
+        loadAdmin('pending');
+      } catch (err) {
+        alert('Ошибка сети: ' + err.message);
+      }
+    };
+
+    window.rejectSub = async function(id) {
+      try {
+        const data = await api('admin', {
+          body: JSON.stringify({
+            action: 'reject',
+            submission_id: id,
+            admin_id: currentUser.telegram_id
+          })
+        });
+        if (data.error) { alert('Ошибка: ' + data.error); return; }
+        loadAdmin('pending');
+      } catch (err) {
+        alert('Ошибка сети: ' + err.message);
+      }
+    };
+
+    init();
+  </script>
+</body>
+</html>
