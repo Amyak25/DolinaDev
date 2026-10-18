@@ -24,7 +24,7 @@ module.exports = async (req, res) => {
 
     const sql = neon(process.env.DATABASE_URL);
 
-    // Проверяем, что запрашивающий — админ (кроме случая 'submissions_list' — там проверка ниже)
+    // Проверяем, что запрашивающий — админ
     const requester = await sql`
       SELECT role FROM users WHERE telegram_id = ${adminIdNum}
     `;
@@ -39,41 +39,41 @@ module.exports = async (req, res) => {
 
       if (status === 'pending') {
         submissions = await sql`
-  SELECT s.id, s.user_id, s.stage_id, s.premium_task_id,
-         s.photo_before_url, s.photo_after_url, s.status, s.reward, s.created_at,
-         u.nickname,
-         st.name AS stage_name,
-         st.description AS stage_description,
-         st.order_num AS stage_order_num,
-         pt.name AS premium_name,
-         pt.description AS premium_description,
-         pt.order_num AS premium_order_num
-  FROM submissions s
-  LEFT JOIN users u ON u.telegram_id = s.user_id
-  LEFT JOIN stages st ON st.id = s.stage_id
-  LEFT JOIN premium_tasks pt ON pt.id = s.premium_task_id
-  WHERE s.status = 'pending'
-  ORDER BY s.created_at ASC
-`;
+          SELECT s.id, s.user_id, s.stage_id, s.premium_task_id,
+                 s.photo_before_url, s.photo_after_url, s.status, s.reward, s.created_at,
+                 u.nickname,
+                 st.name AS stage_name,
+                 st.description AS stage_description,
+                 st.order_num AS stage_order_num,
+                 pt.name AS premium_name,
+                 pt.description AS premium_description,
+                 pt.order_num AS premium_order_num
+          FROM submissions s
+          LEFT JOIN users u ON u.telegram_id = s.user_id
+          LEFT JOIN stages st ON st.id = s.stage_id
+          LEFT JOIN premium_tasks pt ON pt.id = s.premium_task_id
+          WHERE s.status = 'pending'
+          ORDER BY s.created_at ASC
+        `;
       } else {
         submissions = await sql`
-  SELECT s.id, s.user_id, s.stage_id, s.premium_task_id,
-         s.photo_before_url, s.photo_after_url, s.status, s.reward, s.created_at,
-         u.nickname,
-         st.name AS stage_name,
-         st.description AS stage_description,
-         st.order_num AS stage_order_num,
-         pt.name AS premium_name,
-         pt.description AS premium_description,
-         pt.order_num AS premium_order_num
-  FROM submissions s
-  LEFT JOIN users u ON u.telegram_id = s.user_id
-  LEFT JOIN stages st ON st.id = s.stage_id
-  LEFT JOIN premium_tasks pt ON pt.id = s.premium_task_id
-  WHERE s.status IN ('approved', 'rejected')
-  ORDER BY s.created_at DESC
-  LIMIT 100
-`;
+          SELECT s.id, s.user_id, s.stage_id, s.premium_task_id,
+                 s.photo_before_url, s.photo_after_url, s.status, s.reward, s.created_at,
+                 u.nickname,
+                 st.name AS stage_name,
+                 st.description AS stage_description,
+                 st.order_num AS stage_order_num,
+                 pt.name AS premium_name,
+                 pt.description AS premium_description,
+                 pt.order_num AS premium_order_num
+          FROM submissions s
+          LEFT JOIN users u ON u.telegram_id = s.user_id
+          LEFT JOIN stages st ON st.id = s.stage_id
+          LEFT JOIN premium_tasks pt ON pt.id = s.premium_task_id
+          WHERE s.status IN ('approved', 'rejected')
+          ORDER BY s.created_at DESC
+          LIMIT 100
+        `;
       }
 
       return res.status(200).json({ submissions });
@@ -135,8 +135,8 @@ module.exports = async (req, res) => {
           const nextStage = orderNum + 1;
 
           await sql`
-            INSERT INTO user_progress (user_id, current_stage, premium_unlocked, completed_premium)
-            VALUES (${userId}, ${nextStage}, false, '{}')
+            INSERT INTO user_progress (user_id, current_stage, premium_unlocked, completed_premium, earned_awards)
+            VALUES (${userId}, ${nextStage}, false, '{}', '{}')
             ON CONFLICT (user_id) DO UPDATE
             SET current_stage = GREATEST(user_progress.current_stage, ${nextStage}),
                 premium_unlocked = CASE WHEN ${nextStage} > 15 THEN true ELSE user_progress.premium_unlocked END
@@ -151,6 +151,31 @@ module.exports = async (req, res) => {
           WHERE user_id = ${userId}
             AND NOT (${premiumId} = ANY(completed_premium))
         `;
+      }
+
+      // === Проверяем награды ===
+      try {
+        const purchaseCount = await sql`
+          SELECT COUNT(*)::int AS cnt FROM user_purchases WHERE user_id = ${userId}
+        `;
+        const purchases = purchaseCount[0] ? purchaseCount[0].cnt : 0;
+
+        const eligibleAwards = await sql`
+          SELECT id FROM awards
+          WHERE ${purchases} >= min_purchases
+            AND (max_purchases IS NULL OR ${purchases} <= max_purchases)
+        `;
+
+        for (const a of eligibleAwards) {
+          await sql`
+            UPDATE user_progress
+            SET earned_awards = array_append(earned_awards, ${a.id})
+            WHERE user_id = ${userId}
+              AND NOT (${a.id} = ANY(earned_awards))
+          `;
+        }
+      } catch (awardErr) {
+        console.error('Ошибка наград:', awardErr);
       }
 
       return res.status(200).json({ success: true });
