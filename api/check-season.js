@@ -65,12 +65,13 @@ module.exports = async (req, res) => {
       // 2. Удаляем работы
       await sql`DELETE FROM submissions WHERE user_id = ${telegramIdNum}`;
 
-      // 3. Сбрасываем прогресс (кроме earned_awards!)
+      // 3. Сбрасываем прогресс (включая награды)
       await sql`
         UPDATE user_progress
         SET current_stage = 1,
             premium_unlocked = false,
             completed_premium = '{}',
+            earned_awards = '{}',
             season_reset_done = true
         WHERE user_id = ${telegramIdNum}
       `;
