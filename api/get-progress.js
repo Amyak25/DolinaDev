@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
     }
 
     const progress = await sql`
-      SELECT current_stage, premium_unlocked, completed_premium
+      SELECT current_stage, premium_unlocked, completed_premium, earned_awards
       FROM user_progress WHERE user_id = ${telegramIdNum}
     `;
 
@@ -47,7 +47,6 @@ module.exports = async (req, res) => {
       ORDER BY up.purchased_at DESC
     `;
 
-    // Проверяем, есть ли активная заявка
     const pending = await sql`
       SELECT id, stage_id, premium_task_id, status, created_at
       FROM submissions
@@ -58,7 +57,12 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({
       user: user[0],
-      progress: progress[0] || { current_stage: 1, premium_unlocked: false, completed_premium: [] },
+      progress: progress[0] || { 
+        current_stage: 1, 
+        premium_unlocked: false, 
+        completed_premium: [], 
+        earned_awards: [] 
+      },
       stage: stage[0] || null,
       purchases,
       pending_submission: pending[0] || null
