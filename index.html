@@ -9,7 +9,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background-image: url('https://ivyofetwwhfrbkwyuzgr.supabase.co/storage/v1/object/public/photos/photo_2026-10-05_23-06-33.jpg');
+      background-image: url('assets/background.jpg');
       background-size: cover;
       background-position: center;
       background-attachment: fixed;
@@ -421,12 +421,10 @@
   </div>
 
   <script>
-    const SUPABASE_URL = 'https://fmvodfnonmdjzfjkagvo.supabase.co';
-    const SUPABASE_KEY = 'ВСТАВЬ_СЮДА_СВОЙ_PUBLISHABLE_KEY';
     const IMGBB_KEY = 'f713e98d2e2690e2855ba795dc35eb23';
 
-    const VIDEO_URL = 'https://fmvodfnonmdjzfjkagvo.supabase.co/storage/v1/object/public/photos/IMG_2506.MP4';
-    const PHOTO_URL = 'https://fmvodfnonmdjzfjkagvo.supabase.co/storage/v1/object/public/photos/photo_2026-10-06_21-20-02.jpg';
+    const VIDEO_URL = 'assets/final-video.MP4';
+    const PHOTO_URL = 'assets/final-photo.jpg';
 
     const tg = window.Telegram.WebApp;
     tg.ready();
@@ -653,9 +651,9 @@
         document.getElementById('stage-label').textContent = 'Этап ' + stage.order_num + ' из 15';
         document.getElementById('stage-title').textContent = stage.name;
         document.getElementById('stage-desc').textContent = stage.description;
-        if (stage.building_image_url) {
+        if (stage.order_num) {
           const img = document.getElementById('stage-img');
-          img.src = stage.building_image_url;
+          img.src = 'assets/stage-' + stage.order_num + '.jpg';
           img.style.display = 'block';
         }
       } else {
@@ -740,7 +738,7 @@
         }
 
         html += '<div class="' + cardClass + '">';
-        html += '<img class="award-img ' + lockedClass + '" src="' + a.image_url + '" alt="' + a.name + '" loading="lazy">';
+        html += '<img class="award-img ' + lockedClass + '" src="assets/award-' + a.order_num + '.jpg" alt="' + a.name + '" loading="lazy">';
         html += '<div class="award-name">' + a.name + '</div>';
         html += '<div class="award-cond">' + condText + '</div>';
         html += '</div>';
@@ -1070,8 +1068,8 @@
         html += '<div class="other-stage-card">';
         html += '<div class="stage-label">Этап ' + stage.order_num + '</div>';
         html += '<div class="stage-title">' + stage.name + '</div>';
-        if (stage.building_image_url) {
-          html += '<img class="other-stage-img" src="' + stage.building_image_url + '" alt="' + stage.name + '" loading="lazy">';
+        if (stage.order_num) {
+          html += '<img class="other-stage-img" src="assets/stage-' + stage.order_num + '.jpg" alt="' + stage.name + '" loading="lazy">';
         }
         html += '</div>';
       }
