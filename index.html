@@ -777,7 +777,7 @@
       document.getElementById('submit-btn').disabled = !(fileBefore && fileAfter);
     }
 
-    // === ЗАГРУЗКА ФОТО В IMGBB С АВТОУДАЛЕНИЕМ (7 ДНЕЙ) ===
+    // === ЗАГРУЗКА ФОТО В IMGBB С АВТОУДАЛЕНИЕМ (7 ДНЕЙ) И USER-AGENT ===
     async function uploadPhoto(file, prefix) {
       const formData = new FormData();
       formData.append('image', file);
@@ -787,7 +787,10 @@
 
       const res = await fetch(url, {
         method: 'POST',
-        body: formData
+        body: formData,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
       });
 
       const data = await res.json();
