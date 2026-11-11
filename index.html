@@ -421,8 +421,6 @@
   </div>
 
   <script>
-    const IMGBB_KEY = 'f713e98d2e2690e2855ba795dc35eb23';
-
     const VIDEO_URL = 'assets/final-video.MP4';
     const PHOTO_URL = 'assets/final-photo.jpg';
 
@@ -777,29 +775,32 @@
       document.getElementById('submit-btn').disabled = !(fileBefore && fileAfter);
     }
 
-    // === ЗАГРУЗКА ФОТО В IMGBB С АВТОУДАЛЕНИЕМ (7 ДНЕЙ) И USER-AGENT ===
+    // === ЗАГРУЗКА ФОТО В IMG402 (БЕЗ КЛЮЧА) ===
     async function uploadPhoto(file, prefix) {
+      // Проверка размера (Img402 принимает до 1 МБ)
+      if (file.size > 1024 * 1024) {
+        throw new Error('Фото слишком большое. Максимум 1 МБ.');
+      }
+
       const formData = new FormData();
       formData.append('image', file);
 
-      // Автоудаление через 7 дней (604800 секунд)
-      const url = 'https://api.imgbb.com/1/upload?key=' + IMGBB_KEY + '&expiration=604800';
-
-      const res = await fetch(url, {
+      const res = await fetch('https://img402.dev/api/free', {
         method: 'POST',
-        body: formData,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
+        body: formData
       });
+
+      if (!res.ok) {
+        throw new Error('Ошибка загрузки фото. Попробуй ещё раз.');
+      }
 
       const data = await res.json();
 
-      if (!data.success) {
-        throw new Error(data.error?.message || 'Ошибка загрузки в ImgBB');
+      if (!data.url) {
+        throw new Error('Сервис не вернул ссылку на фото');
       }
 
-      return data.data.url;
+      return data.url;
     }
 
     document.getElementById('submit-btn').addEventListener('click', async function() {
