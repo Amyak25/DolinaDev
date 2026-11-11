@@ -775,32 +775,23 @@
       document.getElementById('submit-btn').disabled = !(fileBefore && fileAfter);
     }
 
-    // === ЗАГРУЗКА ФОТО В IMG402 (БЕЗ КЛЮЧА) ===
+    // === ЗАГРУЗКА ФОТО В CATBOX (БЕЗ КЛЮЧА, ДО 200 МБ) ===
     async function uploadPhoto(file, prefix) {
-      // Проверка размера (Img402 принимает до 1 МБ)
-      if (file.size > 1024 * 1024) {
-        throw new Error('Фото слишком большое. Максимум 1 МБ.');
-      }
-
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('reqtype', 'fileupload');
+      formData.append('fileToUpload', file);
 
-      const res = await fetch('https://img402.dev/api/free', {
+      const res = await fetch('https://catbox.moe/user/api.php', {
         method: 'POST',
         body: formData
       });
 
       if (!res.ok) {
-        throw new Error('Ошибка загрузки фото. Попробуй ещё раз.');
+        throw new Error('Ошибка загрузки фото в Catbox');
       }
 
-      const data = await res.json();
-
-      if (!data.url) {
-        throw new Error('Сервис не вернул ссылку на фото');
-      }
-
-      return data.url;
+      const url = await res.text();
+      return url.trim();
     }
 
     document.getElementById('submit-btn').addEventListener('click', async function() {
