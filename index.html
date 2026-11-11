@@ -421,6 +421,8 @@
   </div>
 
   <script>
+    const IMGBB_KEY = 'f713e98d2e2690e2855ba795dc35eb23';
+
     const VIDEO_URL = 'assets/final-video.MP4';
     const PHOTO_URL = 'assets/final-photo.jpg';
 
@@ -775,23 +777,26 @@
       document.getElementById('submit-btn').disabled = !(fileBefore && fileAfter);
     }
 
-    // === ЗАГРУЗКА ФОТО В CATBOX (БЕЗ КЛЮЧА, ДО 200 МБ) ===
+    // === ЗАГРУЗКА ФОТО В IMGBB ===
     async function uploadPhoto(file, prefix) {
       const formData = new FormData();
-      formData.append('reqtype', 'fileupload');
-      formData.append('fileToUpload', file);
+      formData.append('image', file);
 
-      const res = await fetch('https://catbox.moe/user/api.php', {
+      // Автоудаление через 7 дней (604800 секунд)
+      const url = 'https://api.imgbb.com/1/upload?key=' + IMGBB_KEY + '&expiration=604800';
+
+      const res = await fetch(url, {
         method: 'POST',
         body: formData
       });
 
-      if (!res.ok) {
-        throw new Error('Ошибка загрузки фото в Catbox');
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.error?.message || 'Ошибка загрузки в ImgBB');
       }
 
-      const url = await res.text();
-      return url.trim();
+      return data.data.url;
     }
 
     document.getElementById('submit-btn').addEventListener('click', async function() {
