@@ -421,6 +421,8 @@
   </div>
 
   <script>
+    const IMGBB_KEY = 'f713e98d2e2690e2855ba795dc35eb23';
+
     const VIDEO_URL = 'assets/final-video.MP4';
     const PHOTO_URL = 'assets/final-photo.jpg';
 
@@ -775,24 +777,26 @@
       document.getElementById('submit-btn').disabled = !(fileBefore && fileAfter);
     }
 
-    // === ЗАГРУЗКА ФОТО В LITTERBOX (ДО 1 ГБ, 72 ЧАСА) ===
+    // === ЗАГРУЗКА ФОТО В IMGBB С ОБРАБОТКОЙ ОШИБОК ===
     async function uploadPhoto(file, prefix) {
       const formData = new FormData();
-      formData.append('reqtype', 'fileupload');
-      formData.append('time', '72h');
-      formData.append('fileToUpload', file);
+      formData.append('image', file);
 
-      const res = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
-        method: 'POST',
-        body: formData
-      });
+      const url = 'https://api.imgbb.com/1/upload?key=' + IMGBB_KEY + '&expiration=604800';
 
-      if (!res.ok) {
-        throw new Error('Ошибка загрузки фото. Попробуй ещё раз.');
+      try {
+        const res = await fetch(url, { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (!data.success) {
+          throw new Error(data.error?.message || 'ImgBB вернул ошибку');
+        }
+
+        return data.data.url;
+      } catch (err) {
+        console.error('ImgBB error:', err);
+        throw new Error('Не удалось загрузить фото. Попробуй еще раз или выбери другое фото.');
       }
-
-      const url = await res.text();
-      return url.trim();
     }
 
     document.getElementById('submit-btn').addEventListener('click', async function() {
